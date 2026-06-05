@@ -39,9 +39,9 @@ export async function POST(req: Request) {
 
     const results = await Promise.all(imagePromises);
     const urls = results.map((r) => {
-      const item = r.data[0];
+      const item = r.data?.[0];
+      if (!item) return null;
       if (item.url) return item.url;
-      // gpt-image-1 returns base64
       if (item.b64_json) return `data:image/png;base64,${item.b64_json}`;
       return null;
     }).filter(Boolean);
