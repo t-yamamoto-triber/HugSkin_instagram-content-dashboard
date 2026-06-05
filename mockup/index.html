@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Instagram Content Dashboard — Mockup</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f9fafb; color: #111827; font-size: 13px; }
+  button { cursor: pointer; font-family: inherit; font-size: 12px; border-radius: 5px; border: 1px solid #d1d5db; background: #fff; padding: 4px 10px; color: #374151; transition: background 0.15s; }
+  button:hover { background: #f3f4f6; }
+  button.primary { background: #111827; color: #fff; border-color: #111827; }
+  button.primary:hover { background: #1f2937; }
+  button.ghost { border-color: transparent; background: transparent; }
+  button.ghost:hover { background: #f3f4f6; }
+  button.danger { border-color: #fca5a5; background: #fff; color: #dc2626; }
+  button.danger:hover { background: #fef2f2; }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  input, textarea, select { font-family: inherit; font-size: 12px; border: 1px solid #d1d5db; border-radius: 5px; padding: 6px 10px; width: 100%; color: #111827; background: #fff; outline: none; }
+  input:focus, textarea:focus { border-color: #6b7280; }
+  textarea { resize: vertical; }
+  select { width: auto; padding: 4px 8px; font-size: 11px; }
+  .pill { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 99px; border: 1px solid #d1d5db; font-size: 11px; cursor: pointer; background: #fff; color: #6b7280; user-select: none; transition: all 0.15s; }
+  .pill:hover { border-color: #9ca3af; color: #374151; }
+  .pill.on { background: #111827; color: #fff; border-color: #111827; }
+  .callout { border-radius: 6px; padding: 10px 12px; border: 1px solid #d1d5db; background: #f9fafb; font-size: 12px; color: #4b5563; }
+  .callout.info { border-color: #93c5fd; background: #eff6ff; color: #1d4ed8; }
+  .callout.success { border-color: #86efac; background: #f0fdf4; color: #166534; }
+  .tag-count { font-size: 11px; color: #9ca3af; }
+  .tag-count.warn { color: #ef4444; font-weight: 600; }
+  .thumb-wrap { position: relative; cursor: pointer; border-radius: 6px; overflow: hidden; border: 1px solid #e5e7eb; transition: border-color 0.15s; }
+  .thumb-wrap.selected { border-color: #111827; border-width: 2px; }
+  .thumb-img { height: 72px; }
+  .thumb-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.15s; }
+  .thumb-wrap:hover .thumb-overlay { opacity: 1; }
+  .thumb-caption { padding: 5px 8px; background: #fff; }
+  .thumb-caption .t1 { font-size: 11px; color: #6b7280; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .thumb-caption .t2 { font-size: 11px; color: #9ca3af; }
+  .pane-header { display: flex; align-items: center; gap: 6px; padding: 9px 14px; border-bottom: 1px solid #e5e7eb; background: #fff; flex-wrap: wrap; }
+  .pane-label { font-weight: 600; font-size: 12px; color: #374151; margin-right: 2px; }
+  .spacer { flex: 1; }
+  .scroll-area { overflow-y: auto; max-height: 280px; padding: 12px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .grid1 { display: grid; grid-template-columns: 1fr; gap: 8px; }
+  .list-row { display: flex; align-items: center; gap: 8px; padding: 6px 4px; border-bottom: 1px solid #f3f4f6; }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+  .cal-day-label { text-align: center; font-size: 10px; color: #9ca3af; padding: 4px 0; font-weight: 500; }
+  .cal-cell { height: 56px; border: 1px solid #f3f4f6; border-radius: 4px; padding: 3px; display: flex; flex-direction: column; gap: 2px; overflow: hidden; }
+  .cal-date { font-size: 10px; color: #9ca3af; line-height: 1; }
+  .cal-date.today { background: #111827; color: #fff; border-radius: 99px; width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; font-weight: 700; }
+  .cal-thumb { width: 100%; aspect-ratio: 1; border-radius: 3px; cursor: pointer; }
+  .cal-cell.empty { background: #fafafa; }
+  .cal-nav { display: flex; align-items: center; gap: 6px; padding: 4px 0 8px; }
+  .cal-nav-btn { background: none; border: 1px solid #e5e7eb; border-radius: 4px; padding: 2px 8px; font-size: 13px; cursor: pointer; color: #374151; }
+  .cal-nav-btn:hover { background: #f3f4f6; }
+  .cal-year-select, .cal-month-select { font-size: 12px; border: 1px solid #e5e7eb; border-radius: 4px; padding: 2px 6px; color: #111827; background: #fff; cursor: pointer; }
+  .cal-month-label { font-size: 13px; font-weight: 600; color: #111827; }
+  .proposal-card { border: 1px solid #e5e7eb; border-radius: 6px; padding: 10px; display: flex; flex-direction: column; gap: 8px; transition: border-color 0.15s; }
+  .proposal-card:hover { border-color: #9ca3af; }
+  .proposal-text { font-size: 11px; color: #6b7280; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; white-space: pre-wrap; line-height: 1.5; }
+  .img-placeholder { display: flex; align-items: center; justify-content: center; border-radius: 6px; border: 1px dashed #d1d5db; color: #9ca3af; font-size: 12px; height: 160px; }
+  .img-placeholder.disabled { background: #f9fafb; }
+  .img-gen { display: flex; align-items: center; justify-content: center; border-radius: 6px; background: #f3f4f6; border: 1px solid #e5e7eb; color: #6b7280; font-size: 11px; }
+  .divider { border: none; border-top: 1px solid #e5e7eb; margin: 4px 0; }
+  #app { display: flex; flex-direction: column; min-height: 100vh; }
+  #header { display: flex; align-items: center; gap: 8px; padding: 10px 16px; border-bottom: 1px solid #e5e7eb; background: #fff; }
+  #header .title { font-weight: 700; font-size: 14px; }
+  #header .sub { font-size: 11px; color: #9ca3af; margin-left: 4px; }
+  #grid { display: grid; grid-template-columns: 1fr 1fr; flex: 1; }
+  .pane { background: #fff; }
+  .pane-a { border-right: 1px solid #e5e7eb; border-bottom: 1px solid #e5e7eb; }
+  .pane-b { border-bottom: 1px solid #e5e7eb; }
+  .pane-c { border-right: 1px solid #e5e7eb; }
+  .pane-body { padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+  .row { display: flex; align-items: center; gap: 8px; }
+  .overlay-btn { font-size: 11px; padding: 3px 10px; background: #fff; color: #111; border: none; border-radius: 4px; cursor: pointer; }
+  .section-label { font-size: 11px; color: #6b7280; font-weight: 500; }
+  .input-group { display: flex; flex-direction: column; gap: 4px; }
+  .confirmed-banner { background: #f0fdf4; border: 1px solid #86efac; border-radius: 6px; padding: 8px 12px; font-size: 12px; color: #166534; display: flex; align-items: center; gap: 8px; }
+
+  /* Modal */
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 100; }
+  .modal { background: #fff; border-radius: 8px; border: 1px solid #e5e7eb; width: 520px; max-width: 90vw; max-height: 80vh; overflow-y: auto; display: flex; flex-direction: column; }
+  .modal-header { display: flex; align-items: center; padding: 14px 16px; border-bottom: 1px solid #e5e7eb; }
+  .modal-title { font-weight: 600; font-size: 14px; flex: 1; }
+  .modal-body { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+  .modal-footer { padding: 12px 16px; border-top: 1px solid #e5e7eb; display: flex; justify-content: flex-end; gap: 8px; }
+  .field-label { font-size: 12px; font-weight: 500; color: #374151; margin-bottom: 4px; }
+  .field-hint { font-size: 11px; color: #9ca3af; margin-top: 3px; }
+  .future-badge { display: inline-flex; align-items: center; padding: 2px 7px; border-radius: 99px; background: #fef9c3; border: 1px solid #fde047; font-size: 10px; color: #854d0e; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="header">
+    <span class="title">Instagram Content Dashboard</span>
+    <span class="sub">— Mockup</span>
+    <div class="spacer"></div>
+    <button class="ghost" onclick="openSettings()">設定</button>
+    <button class="ghost" id="btn-drafts">下書き一覧</button>
+    <button class="primary">下書き保存</button>
+  </div>
+  <div id="grid">
+    <div class="pane pane-a">
+      <div class="pane-header">
+        <span class="pane-label">A &nbsp; 自社過去投稿</span>
+        <div class="spacer"></div>
+        <span class="pill on" id="pill-card" onclick="setOwnView('card')">カード</span>
+        <span class="pill" id="pill-list" onclick="setOwnView('list')">一覧</span>
+        <span class="pill" id="pill-cal" onclick="setOwnView('calendar')">カレンダー</span>
+      </div>
+      <div class="scroll-area" id="pane-a-body"></div>
+    </div>
+    <div class="pane pane-b">
+      <div class="pane-header">
+        <span class="pane-label">B &nbsp; 競合投稿</span>
+        <span class="pill on" id="pill-comp" onclick="setBTab('competitor')">競合</span>
+        <span class="pill" id="pill-saved" onclick="setBTab('saved')">保存済み</span>
+        <div class="spacer"></div>
+        <select id="account-select" onchange="setAccount(this.value)">
+          <option value="@brand_a">@brand_a</option>
+          <option value="@brand_b">@brand_b</option>
+        </select>
+        <button class="ghost" onclick="alert('最新データを取得しました')">更新</button>
+      </div>
+      <div class="scroll-area" id="pane-b-body"></div>
+    </div>
+    <div class="pane pane-c">
+      <div class="pane-header">
+        <span class="pane-label">C &nbsp; AIキャプションエディタ</span>
+        <div class="spacer"></div>
+        <span class="tag-count" id="round-label">ラウンド 1</span>
+      </div>
+      <div class="pane-body" id="pane-c-body"></div>
+    </div>
+    <div class="pane pane-d">
+      <div class="pane-header">
+        <span class="pane-label">D &nbsp; 画像構成プランナー</span>
+        <div class="spacer"></div>
+        <span id="d-status-badge" style="display:none" class="tag-count" style="color:#166534"></span>
+      </div>
+      <div class="pane-body" id="pane-d-body"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Settings Modal -->
+<div class="modal-backdrop" id="settings-modal" style="display:none" onclick="closeSettingsIfBackdrop(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">設定</span>
+      <button class="ghost" onclick="closeSettings()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div>
+        <div class="field-label">ブランドレギュレーション・トンマナ</div>
+        <textarea id="brand-reg" rows="8" placeholder="例：&#10;- ブランド名：〇〇&#10;- ターゲット：20〜30代女性&#10;- トーン：親しみやすく、でもプロフェッショナル&#10;- 禁止ワード：安い、激安&#10;- 必ず入れる要素：季節感、ライフスタイル提案&#10;- ハッシュタグルール：ブランド名タグを必ず末尾に"></textarea>
+        <div class="field-hint">プロンプト形式で自由に記述してください。CとDのAI出力に反映されます。</div>
+      </div>
+      <div>
+        <div class="row" style="margin-bottom:6px">
+          <div class="field-label" style="margin:0">外部ドキュメント読み込み</div>
+          <span class="future-badge">将来対応予定</span>
+        </div>
+        <input disabled placeholder="Google Doc / Spreadsheet の URL を貼る" style="color:#9ca3af;background:#f9fafb" />
+        <div class="field-hint">ブランドガイドラインのドキュメントURLを読み込んで自動反映できるようになります。</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="ghost" onclick="closeSettings()">キャンセル</button>
+      <button class="primary" onclick="saveSettings()">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const OWN_POSTS = [
+  { id:1, caption:'春の新作コレクションが入荷しました。今年のトレンドカラーを取り入れながら...', date:'5/10', hue:'#6b7280' },
+  { id:2, caption:'スタッフのおすすめアイテムをご紹介。毎日のコーデに取り入れやすい一着...', date:'5/7',  hue:'#9ca3af' },
+  { id:3, caption:'週末限定スペシャルセール開催中！今だけのお得なアイテムをお見逃しなく...', date:'5/3',  hue:'#4b5563' },
+  { id:4, caption:'新しいライフスタイルブランドとのコラボが実現。詳細はストーリーズへ...', date:'4/28', hue:'#374151' },
+  { id:5, caption:'GW特集：大切な方へのギフトアイテムを集めました。今すぐチェック...', date:'4/24', hue:'#6b7280' },
+  { id:6, caption:'インスタライブを開催します！新商品の紹介と質問コーナーあり...', date:'4/20', hue:'#9ca3af' },
+];
+const COMPETITOR_POSTS = {
+  '@brand_a': [
+    { id:1, caption:'【新作入荷】夏向けのさわやかなアイテムが勢揃い。ぜひ店頭でチェックを...', date:'5/12', hue:'#6b7280' },
+    { id:2, caption:'人気スタイリストとのコラボ企画がスタート！期間限定コレクション公開中...', date:'5/9', hue:'#4b5563' },
+    { id:3, caption:'サステナブルな素材にこだわった新ライン発売。地球にやさしい選択を...', date:'5/5', hue:'#9ca3af' },
+    { id:4, caption:'フォロワー1万人感謝キャンペーン開催！参加方法はプロフィールへ...', date:'5/2', hue:'#374151' },
+  ],
+  '@brand_b': [
+    { id:1, caption:'今シーズン注目のカラーパレットをご紹介。アースカラーが主役です...', date:'5/11', hue:'#78716c' },
+    { id:2, caption:'週1投稿「スタッフの私服」コーナー。今週はオフィスカジュアル特集...', date:'5/8', hue:'#57534e' },
+    { id:3, caption:'新作バッグコレクション公開。機能性とデザインを両立した傑作...', date:'5/4', hue:'#a8a29e' },
+  ],
+};
+const PROPOSALS = [
+  { id:1, text:'季節の変わり目にぴったりのアイテムが揃いました。\n今年のトレンドを取り入れながら、自分らしいスタイルを見つけてみてください。\n\n#新作 #ファッション #トレンド #コーデ' },
+  { id:2, text:'新しい季節の始まりとともに、新しいスタイルはいかがですか？\nこだわり抜いたアイテムで、毎日をもっと豊かに。\n\n#新生活 #スタイリング #おしゃれ #ファッション' },
+  { id:3, text:'この季節にぴったりのアイテムが入荷しました。\nシンプルだけど、着るたびに気分が上がるデザインです。\n\n#シンプルコーデ #ファッション #スタイル #コーデ' },
+];
+
+// State
+let ownView = 'card';
+let bTab = 'competitor';
+let account = '@brand_a';
+let saved = [];
+let refPost = null; // selected competitor post for C
+let theme = '';
+let proposalsShown = false;
+let selectedProposal = null;
+let caption = '';
+let feedback = '';
+let round = 1;
+let captionConfirmed = false;
+let imageFormat = 'single';
+let generated = false;
+let brandReg = '';
+
+// --- Settings ---
+function openSettings() {
+  document.getElementById('brand-reg').value = brandReg;
+  document.getElementById('settings-modal').style.display = 'flex';
+}
+function closeSettings() { document.getElementById('settings-modal').style.display = 'none'; }
+function closeSettingsIfBackdrop(e) { if (e.target === document.getElementById('settings-modal')) closeSettings(); }
+function saveSettings() { brandReg = document.getElementById('brand-reg').value; closeSettings(); }
+
+// --- Thumb helper ---
+function thumb(p, actionLabel, onAction, isSelected) {
+  const d = document.createElement('div');
+  d.className = 'thumb-wrap' + (isSelected ? ' selected' : '');
+  d.innerHTML = `
+    <div class="thumb-img" style="background:${p.hue};"></div>
+    <div class="thumb-overlay"><button class="overlay-btn">${actionLabel}</button></div>
+    <div class="thumb-caption"><div class="t1">${p.caption}</div><div class="t2">${p.date}</div></div>
+  `;
+  d.querySelector('.overlay-btn').addEventListener('click', onAction);
+  return d;
+}
+
+// --- Pane A ---
+// Posts mapped to "M/D" key
+const POST_BY_DATE = {};
+OWN_POSTS.forEach(p => { POST_BY_DATE[p.date] = p; });
+
+// Calendar state
+let calYear = 2026;
+let calMonth = 5; // 1-indexed
+
+const MONTH_NAMES = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+
+function renderA() {
+  const el = document.getElementById('pane-a-body'); el.innerHTML = '';
+  document.getElementById('pill-card').className = 'pill' + (ownView==='card'?' on':'');
+  document.getElementById('pill-list').className = 'pill' + (ownView==='list'?' on':'');
+  document.getElementById('pill-cal').className  = 'pill' + (ownView==='calendar'?' on':'');
+
+  // Reset scroll-area constraints for non-calendar views
+  if (ownView !== 'calendar') {
+    el.style.maxHeight = '280px';
+    el.style.overflow = 'auto';
+  }
+
+  if (ownView === 'card') {
+    const grid = document.createElement('div'); grid.className = 'grid3';
+    OWN_POSTS.forEach(p => grid.appendChild(thumb(p, '詳細', () => {}, false)));
+    el.appendChild(grid);
+
+  } else if (ownView === 'list') {
+    OWN_POSTS.forEach(p => {
+      const row = document.createElement('div'); row.className = 'list-row';
+      row.innerHTML = `<div style="width:28px;height:28px;background:${p.hue};border-radius:3px;flex-shrink:0"></div>
+        <div style="flex:1;min-width:0;font-size:12px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:#374151">${p.caption}</div>
+        <div style="font-size:11px;color:#9ca3af;flex-shrink:0">${p.date}</div>`;
+      el.appendChild(row);
+    });
+
+  } else {
+    // ── Calendar view — no scroll, fits full month ──
+    el.style.maxHeight = 'none';
+    el.style.overflow = 'visible';
+    const nav = document.createElement('div'); nav.className = 'cal-nav';
+
+    // Prev month
+    const prevBtn = document.createElement('button'); prevBtn.className = 'cal-nav-btn'; prevBtn.textContent = '‹';
+    prevBtn.onclick = () => { calMonth--; if (calMonth < 1) { calMonth = 12; calYear--; } renderA(); };
+    nav.appendChild(prevBtn);
+
+    // Year selector
+    const yearSel = document.createElement('select'); yearSel.className = 'cal-year-select';
+    for (let y = 2023; y <= 2027; y++) {
+      const opt = document.createElement('option'); opt.value = y; opt.textContent = y + '年';
+      if (y === calYear) opt.selected = true;
+      yearSel.appendChild(opt);
+    }
+    yearSel.onchange = e => { calYear = parseInt(e.target.value); renderA(); };
+    nav.appendChild(yearSel);
+
+    // Month selector (scroll select)
+    const monthSel = document.createElement('select'); monthSel.className = 'cal-month-select';
+    MONTH_NAMES.forEach((m, i) => {
+      const opt = document.createElement('option'); opt.value = i + 1; opt.textContent = m;
+      if (i + 1 === calMonth) opt.selected = true;
+      monthSel.appendChild(opt);
+    });
+    monthSel.onchange = e => { calMonth = parseInt(e.target.value); renderA(); };
+    nav.appendChild(monthSel);
+
+    // Next month
+    const nextBtn = document.createElement('button'); nextBtn.className = 'cal-nav-btn'; nextBtn.textContent = '›';
+    nextBtn.onclick = () => { calMonth++; if (calMonth > 12) { calMonth = 1; calYear++; } renderA(); };
+    nav.appendChild(nextBtn);
+
+    el.appendChild(nav);
+
+    // Day-of-week headers
+    const calWrap = document.createElement('div'); calWrap.className = 'cal-grid';
+    ['日','月','火','水','木','金','土'].forEach(d => {
+      const lbl = document.createElement('div'); lbl.className = 'cal-day-label'; lbl.textContent = d;
+      calWrap.appendChild(lbl);
+    });
+
+    const daysInMonth = new Date(calYear, calMonth, 0).getDate();
+    const startDow = new Date(calYear, calMonth - 1, 1).getDay();
+    const today = new Date(); // for "today" highlight
+
+    // Empty cells before first day
+    for (let i = 0; i < startDow; i++) {
+      const empty = document.createElement('div'); empty.className = 'cal-cell empty'; calWrap.appendChild(empty);
+    }
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const cell = document.createElement('div'); cell.className = 'cal-cell';
+      const isToday = today.getFullYear() === calYear && (today.getMonth()+1) === calMonth && today.getDate() === day;
+      const dateLabel = document.createElement('div');
+      dateLabel.className = 'cal-date' + (isToday ? ' today' : '');
+      dateLabel.textContent = day;
+      cell.appendChild(dateLabel);
+
+      // Check for post on this day
+      const key = `${calMonth}/${day}`;
+      if (POST_BY_DATE[key]) {
+        const p = POST_BY_DATE[key];
+        const t = document.createElement('div');
+        t.className = 'cal-thumb'; t.style.background = p.hue; t.title = p.caption;
+        cell.appendChild(t);
+      }
+      calWrap.appendChild(cell);
+    }
+
+    // Fill remaining cells to complete last row
+    const totalCells = startDow + daysInMonth;
+    const remainder = totalCells % 7;
+    if (remainder !== 0) {
+      for (let i = 0; i < 7 - remainder; i++) {
+        const empty = document.createElement('div'); empty.className = 'cal-cell empty'; calWrap.appendChild(empty);
+      }
+    }
+
+    el.appendChild(calWrap);
+  }
+}
+
+// --- Pane B ---
+function renderB() {
+  const el = document.getElementById('pane-b-body'); el.innerHTML = '';
+  document.getElementById('pill-comp').className = 'pill' + (bTab==='competitor'?' on':'');
+  const sp = document.getElementById('pill-saved');
+  sp.className = 'pill' + (bTab==='saved'?' on':'');
+  sp.textContent = '保存済み' + (saved.length > 0 ? ` (${saved.length})` : '');
+  const posts = COMPETITOR_POSTS[account] || [];
+  if (bTab === 'competitor') {
+    const grid = document.createElement('div'); grid.className = 'grid2';
+    posts.forEach(p => {
+      const isSaved = saved.includes(p.id);
+      const isRef = refPost && refPost.id === p.id;
+      const d = thumb(p, isSaved ? '保存解除' : '保存', () => {
+        saved = isSaved ? saved.filter(x => x !== p.id) : [...saved, p.id]; renderB();
+      }, isRef);
+      // Click on image area selects as reference for C
+      d.querySelector('.thumb-img').style.cursor = 'pointer';
+      d.addEventListener('click', (e) => {
+        if (e.target.classList.contains('overlay-btn')) return;
+        refPost = isRef ? null : p;
+        renderB(); renderC();
+      });
+      if (isRef) {
+        const badge = document.createElement('div');
+        badge.style.cssText = 'font-size:10px;color:#fff;background:#111827;padding:2px 6px;text-align:center';
+        badge.textContent = 'C参照中';
+        d.querySelector('.thumb-img').appendChild(badge);
+      }
+      grid.appendChild(d);
+    });
+    el.appendChild(grid);
+    const hint = document.createElement('div');
+    hint.style.cssText = 'font-size:11px;color:#9ca3af;margin-top:8px';
+    hint.textContent = '投稿をクリックするとCペインの参照として選択できます';
+    el.appendChild(hint);
+  } else {
+    const savedPosts = posts.filter(p => saved.includes(p.id));
+    if (!savedPosts.length) {
+      const c = document.createElement('div'); c.className = 'callout'; c.textContent = '保存済みの投稿はありません'; el.appendChild(c);
+    } else {
+      const grid = document.createElement('div'); grid.className = 'grid2';
+      savedPosts.forEach(p => grid.appendChild(thumb(p, '解除', () => { saved = saved.filter(x => x !== p.id); renderB(); })));
+      el.appendChild(grid);
+    }
+  }
+}
+
+// --- Pane C ---
+function renderC() {
+  const el = document.getElementById('pane-c-body'); el.innerHTML = '';
+  document.getElementById('round-label').textContent = `ラウンド ${round}`;
+
+  // If caption confirmed
+  if (captionConfirmed) {
+    const banner = document.createElement('div'); banner.className = 'confirmed-banner';
+    banner.innerHTML = '<span style="font-size:14px">✓</span><span>キャプション確定済み</span>';
+    el.appendChild(banner);
+
+    const taWrapper = document.createElement('div');
+    const ta = document.createElement('textarea'); ta.rows = 7; ta.value = caption; ta.disabled = true;
+    ta.style.background = '#f9fafb'; ta.style.color = '#374151';
+    taWrapper.appendChild(ta); el.appendChild(taWrapper);
+
+    const counters = document.createElement('div'); counters.className = 'row'; counters.id = 'counters'; el.appendChild(counters);
+    updateCounters();
+
+    const row = document.createElement('div'); row.className = 'row';
+    const redo = document.createElement('button'); redo.className = 'danger'; redo.textContent = 'やり直す';
+    redo.addEventListener('click', () => {
+      captionConfirmed = false; generated = false; renderC(); renderD();
+    });
+    row.appendChild(redo); el.appendChild(row);
+    return;
+  }
+
+  // --- Input section ---
+  // Ref post from B
+  const refGroup = document.createElement('div'); refGroup.className = 'input-group';
+  const refLabel = document.createElement('div'); refLabel.className = 'section-label';
+  refLabel.textContent = '参考にする競合投稿（任意）';
+  refGroup.appendChild(refLabel);
+  if (refPost) {
+    const refCard = document.createElement('div');
+    refCard.style.cssText = 'display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid #111827;border-radius:6px;background:#f9fafb';
+    refCard.innerHTML = `<div style="width:32px;height:32px;background:${refPost.hue};border-radius:4px;flex-shrink:0"></div>
+      <div style="flex:1;min-width:0;font-size:11px;color:#374151;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">${refPost.caption}</div>`;
+    const rm = document.createElement('button'); rm.className = 'ghost'; rm.style.fontSize = '10px'; rm.textContent = '解除';
+    rm.addEventListener('click', () => { refPost = null; renderB(); renderC(); });
+    refCard.appendChild(rm); refGroup.appendChild(refCard);
+  } else {
+    const hint = document.createElement('div'); hint.style.cssText = 'font-size:11px;color:#9ca3af;padding:4px 0';
+    hint.textContent = 'Bペインの投稿をクリックして選択';
+    refGroup.appendChild(hint);
+  }
+  el.appendChild(refGroup);
+
+  // Theme input
+  const themeGroup = document.createElement('div'); themeGroup.className = 'input-group';
+  const themeLabel = document.createElement('div'); themeLabel.className = 'section-label';
+  themeLabel.textContent = '今回のテーマ（任意）';
+  themeGroup.appendChild(themeLabel);
+  const themeInput = document.createElement('input'); themeInput.placeholder = '例：夏の新作コレクションを紹介したい';
+  themeInput.value = theme; themeInput.addEventListener('input', e => theme = e.target.value);
+  themeGroup.appendChild(themeInput); el.appendChild(themeGroup);
+
+  // Generate button
+  const genBtn = document.createElement('button'); genBtn.className = 'primary'; genBtn.style.alignSelf = 'flex-start';
+  genBtn.textContent = 'AIに3案提案させる';
+  genBtn.addEventListener('click', () => { proposalsShown = true; selectedProposal = null; caption = ''; renderC(); });
+  el.appendChild(genBtn);
+
+  if (!proposalsShown && selectedProposal === null) return;
+
+  el.appendChild((() => { const hr = document.createElement('hr'); hr.className = 'divider'; return hr; })());
+
+  if (proposalsShown && selectedProposal === null) {
+    const grid = document.createElement('div'); grid.className = 'grid3';
+    PROPOSALS.forEach(p => {
+      const card = document.createElement('div'); card.className = 'proposal-card';
+      card.innerHTML = `<div class="proposal-text">${p.text}</div>`;
+      const btn = document.createElement('button'); btn.textContent = '選ぶ'; btn.style.alignSelf = 'flex-start';
+      btn.addEventListener('click', () => { selectedProposal = p.id; caption = p.text; proposalsShown = false; renderC(); renderD(); });
+      card.appendChild(btn); grid.appendChild(card);
+    });
+    el.appendChild(grid);
+
+    const hr2 = document.createElement('hr'); hr2.className = 'divider'; el.appendChild(hr2);
+    const fbLabel = document.createElement('div'); fbLabel.className = 'section-label'; fbLabel.textContent = '気に入らない点を入力して再提案'; el.appendChild(fbLabel);
+    const inp = document.createElement('input'); inp.placeholder = '例：もっとカジュアルなトーンで'; inp.value = feedback;
+    inp.addEventListener('input', e => feedback = e.target.value); el.appendChild(inp);
+    const btnsRow = document.createElement('div'); btnsRow.className = 'row';
+    if (round > 1) {
+      const back = document.createElement('button'); back.className = 'ghost'; back.textContent = '← 前の案';
+      back.addEventListener('click', () => { round--; renderC(); }); btnsRow.appendChild(back);
+    }
+    const retry = document.createElement('button'); retry.textContent = '再提案';
+    retry.addEventListener('click', () => { if (!feedback) return; round++; feedback = ''; renderC(); }); btnsRow.appendChild(retry);
+    el.appendChild(btnsRow);
+    return;
+  }
+
+  if (selectedProposal !== null) {
+    const topRow = document.createElement('div'); topRow.className = 'row';
+    const lbl = document.createElement('span'); lbl.style.cssText = 'font-size:11px;color:#6b7280'; lbl.textContent = `案 ${selectedProposal} を編集中`;
+    const spacer = document.createElement('div'); spacer.className = 'spacer';
+    const back = document.createElement('button'); back.className = 'ghost'; back.style.fontSize = '11px'; back.textContent = '← 案一覧に戻る';
+    back.addEventListener('click', () => { selectedProposal = null; proposalsShown = true; renderC(); });
+    topRow.appendChild(lbl); topRow.appendChild(spacer); topRow.appendChild(back); el.appendChild(topRow);
+
+    const ta = document.createElement('textarea'); ta.rows = 6; ta.value = caption; ta.placeholder = 'キャプション本文...';
+    ta.addEventListener('input', e => { caption = e.target.value; updateCounters(); });
+    el.appendChild(ta);
+
+    const counters = document.createElement('div'); counters.className = 'row'; counters.id = 'counters'; el.appendChild(counters);
+    updateCounters();
+
+    const actionRow = document.createElement('div'); actionRow.className = 'row';
+    const confirmBtn = document.createElement('button'); confirmBtn.className = 'primary'; confirmBtn.textContent = 'このキャプションで確定する';
+    confirmBtn.addEventListener('click', () => { captionConfirmed = true; renderC(); renderD(); });
+    const redoBtn = document.createElement('button'); redoBtn.className = 'danger'; redoBtn.textContent = 'やり直す';
+    redoBtn.addEventListener('click', () => { selectedProposal = null; caption = ''; proposalsShown = false; renderC(); renderD(); });
+    actionRow.appendChild(confirmBtn); actionRow.appendChild(redoBtn); el.appendChild(actionRow);
+  }
+}
+
+function updateCounters() {
+  const el = document.getElementById('counters'); if (!el) return;
+  const c = caption.length, h = (caption.match(/#\S+/g)||[]).length;
+  el.innerHTML = `<span class="tag-count${c>2000?' warn':''}">残り ${2200-c} 文字</span>
+    <span class="tag-count${h>28?' warn':''}">#${h} / 30</span>`;
+}
+
+// --- Pane D ---
+function renderD() {
+  const el = document.getElementById('pane-d-body'); el.innerHTML = '';
+  const badge = document.getElementById('d-status-badge');
+
+  if (!captionConfirmed) {
+    badge.style.display = 'none';
+    const ph = document.createElement('div'); ph.className = 'img-placeholder disabled';
+    ph.textContent = 'Cペインでキャプションを確定するとアクティブになります';
+    ph.style.height = '180px'; ph.style.padding = '0 20px'; ph.style.textAlign = 'center';
+    el.appendChild(ph);
+    return;
+  }
+
+  badge.style.display = 'inline';
+  badge.textContent = 'キャプション確定済み';
+  badge.style.color = '#166534';
+
+  const formatRow = document.createElement('div'); formatRow.className = 'row';
+  const lbl = document.createElement('span'); lbl.style.cssText = 'font-size:12px;color:#6b7280'; lbl.textContent = '投稿形式';
+  const pillS = document.createElement('span'); pillS.className = 'pill'+(imageFormat==='single'?' on':''); pillS.textContent = '単一画像';
+  pillS.onclick = () => { imageFormat='single'; generated=false; renderD(); };
+  const pillC = document.createElement('span'); pillC.className = 'pill'+(imageFormat==='carousel'?' on':''); pillC.textContent = 'カルーセル';
+  pillC.onclick = () => { imageFormat='carousel'; generated=false; renderD(); };
+  formatRow.appendChild(lbl); formatRow.appendChild(pillS); formatRow.appendChild(pillC); el.appendChild(formatRow);
+
+  if (generated) {
+    const cols = imageFormat === 'carousel' ? 3 : 1;
+    const grid = document.createElement('div'); grid.className = `grid${cols}`;
+    for (let i = 1; i <= cols; i++) {
+      const d = document.createElement('div'); d.className = 'img-gen';
+      d.style.height = cols === 3 ? '100px' : '200px'; d.textContent = `AI生成 ${i}`;
+      grid.appendChild(d);
+    }
+    el.appendChild(grid);
+  } else {
+    const ph = document.createElement('div'); ph.className = 'img-placeholder'; ph.textContent = '画像がここに表示されます'; el.appendChild(ph);
+  }
+
+  const btn = document.createElement('button'); btn.textContent = 'キャプションを元に画像生成'; btn.style.alignSelf = 'flex-start';
+  btn.addEventListener('click', () => { generated = true; renderD(); }); el.appendChild(btn);
+
+  if (generated) {
+    const callout = document.createElement('div'); callout.className = 'callout info';
+    callout.textContent = 'Vercel Blob に自動保存済み — 1時間後に元URLが失効しても閲覧できます';
+    el.appendChild(callout);
+  }
+}
+
+function setOwnView(v) { ownView = v; renderA(); }
+function setBTab(v) { bTab = v; renderB(); }
+function setAccount(v) { account = v; renderB(); }
+
+renderA(); renderB(); renderC(); renderD();
+</script>
+</body>
+</html>

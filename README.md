@@ -1,36 +1,62 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Grill Me
 
-## Getting Started
+計画や設計について、AIが1問ずつ容赦なく質問を重ねて、共通理解に達するまで詰めてくれるスキルです。
 
-First, run the development server:
+「なんとなくこうしたい」が、「これで作る」に変わるまで伴走してくれます。
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## 何ができるか
+
+- AIが計画書・設計書・アイデアを読み込み、決めるべき論点を洗い出す
+- 「AとBどっちが良い？」ではなく「Aがおすすめ、理由はこう。どう思う？」と推奨つきで1問ずつ聞いてくる
+- ユーザーが答えた内容から次の分岐を掘り下げ、決定の依存関係を順に解いていく
+- 最後に「決まったこと」「未決事項」「次のステップ」を短くまとめてくれる
+
+実装には入りません。ファイルも作りません。**質問して理解を深めることに専念**します。
+
+## 使い方
+
+Cursor のチャット欄に、計画や設計の内容を貼り付けて以下のように依頼するだけです。
+
+```
+このプランをグリルして
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+または
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```
+grill me
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+要件を深掘りして
+```
 
-## Learn More
+```
+設計をストレステストして
+```
 
-To learn more about Next.js, take a look at the following resources:
+AIが1問ずつ質問してくるので、自分の考えを答えていけば計画が詰まっていきます。
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## こんなときに使う
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- 計画書を書いたが、本当にこれでいいか不安なとき
+- 設計の判断に迷っていて、抜け漏れがないか確認したいとき
+- 新機能のアイデアはあるが、具体的な仕様に落とせていないとき
+- 自分1人で考えるとどうしても堂々巡りになるとき
 
-## Deploy on Vercel
+## フォルダの中身
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```
+grill-me/
+├── README.md                          ← この説明書
+└── .claude/skills/grill-me/
+    └── SKILL.md                       ← スキル本体（AIへの指示書）
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+`.claude/skills/grill-me/SKILL.md` がスキル本体です。Cursor / Claude Code はこのパスを自動認識するので、このフォルダを Cursor で開けばすぐに使えます。
+
+## 困ったとき
+
+何が起きても、まずはチャット欄でAIに状況を伝えてください。AIがエラーの内容を読み取り、次にやるべきことを教えてくれます。
+
+解決しない場合は、上記のポータル記事のトラブルシューティングを確認してください。
