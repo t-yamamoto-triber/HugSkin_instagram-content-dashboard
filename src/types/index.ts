@@ -41,6 +41,7 @@ export interface Draft {
 
 export interface BrandSettings {
   regulation: string;
+  imageDirection: string;
   competitorAccounts: CompetitorAccount[];
 }
 

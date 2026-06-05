@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import type { InstagramPost, ViewMode } from "@/types";
 
 const MONTH_NAMES = ["1月","2月","3月","4月","5月","6月","7月","8月","9月","10月","11月","12月"];
@@ -83,7 +82,10 @@ export default function PaneA() {
   const [view, setView] = useState<ViewMode>("card");
   const [posts, setPosts] = useState<InstagramPost[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(false);
 
   const [calYear, setCalYear] = useState(new Date().getFullYear());
   const [calMonth, setCalMonth] = useState(new Date().getMonth() + 1);
@@ -93,11 +95,31 @@ export default function PaneA() {
       .then((r) => r.json())
       .then((data) => {
         if (data.error) { setError(data.error); }
-        else { setPosts(data.posts); }
+        else {
+          setPosts(data.posts);
+          setNextCursor(data.nextCursor ?? null);
+          setHasMore(data.hasMore ?? false);
+        }
       })
       .catch(() => setError("データの取得に失敗しました"))
       .finally(() => setLoading(false));
   }, []);
+
+  const loadMore = () => {
+    if (!nextCursor || loadingMore) return;
+    setLoadingMore(true);
+    fetch(`/api/instagram/posts?after=${nextCursor}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (!data.error) {
+          setPosts((prev) => [...prev, ...data.posts]);
+          setNextCursor(data.nextCursor ?? null);
+          setHasMore(data.hasMore ?? false);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoadingMore(false));
+  };
 
   // Map posts to date key "M/D"
   const postByDate: Record<string, InstagramPost> = {};
@@ -192,33 +214,55 @@ export default function PaneA() {
               </div>
             </div>
           ) : (
-            <ScrollArea className="flex-1">
+            <div className="flex-1 overflow-y-auto min-h-0">
               <div className="p-3">
                 {posts.length === 0 ? (
                   <p className="text-xs text-gray-400 text-center py-8">投稿がありません</p>
                 ) : view === "card" ? (
-                  <div className="grid grid-cols-3 gap-2">
-                    {posts.map((p) => <PostCard key={p.id} post={p} />)}
-                  </div>
+                  <>
+                    <div className="grid grid-cols-3 gap-2">
+                      {posts.map((p) => <PostCard key={p.id} post={p} />)}
+                    </div>
+                    {hasMore && (
+                      <button
+                        onClick={loadMore}
+                        disabled={loadingMore}
+                        className="mt-3 w-full py-1.5 text-xs text-gray-500 border border-gray-200 rounded-md hover:bg-gray-50 disabled:opacity-50"
+                      >
+                        {loadingMore ? "読み込み中…" : "もっと読み込む"}
+                      </button>
+                    )}
+                  </>
                 ) : (
-                  <div className="flex flex-col">
-                    {posts.map((p) => (
-                      <div key={p.id} className="flex items-center gap-2 py-1.5 border-b border-gray-100 last:border-0">
-                        {(p.thumbnailUrl || p.mediaUrl)
-                          // eslint-disable-next-line @next/next/no-img-element
-                          ? <img src={p.thumbnailUrl || p.mediaUrl} alt="" className="w-7 h-7 rounded object-cover shrink-0" />
-                          : <div className="w-7 h-7 rounded bg-gray-200 shrink-0" />
-                        }
-                        <p className="flex-1 min-w-0 text-xs text-gray-700 truncate">{p.caption ?? "（キャプションなし）"}</p>
-                        <span className="text-[11px] text-gray-300 shrink-0">
-                          {new Date(p.timestamp).toLocaleDateString("ja-JP", { month: "numeric", day: "numeric" })}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
+                  <>
+                    <div className="flex flex-col">
+                      {posts.map((p) => (
+                        <div key={p.id} className="flex items-center gap-2 py-1.5 border-b border-gray-100 last:border-0">
+                          {(p.thumbnailUrl || p.mediaUrl)
+                            // eslint-disable-next-line @next/next/no-img-element
+                            ? <img src={p.thumbnailUrl || p.mediaUrl} alt="" className="w-7 h-7 rounded object-cover shrink-0" />
+                            : <div className="w-7 h-7 rounded bg-gray-200 shrink-0" />
+                          }
+                          <p className="flex-1 min-w-0 text-xs text-gray-700 truncate">{p.caption ?? "（キャプションなし）"}</p>
+                          <span className="text-[11px] text-gray-300 shrink-0">
+                            {new Date(p.timestamp).toLocaleDateString("ja-JP", { month: "numeric", day: "numeric" })}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                    {hasMore && (
+                      <button
+                        onClick={loadMore}
+                        disabled={loadingMore}
+                        className="mt-3 w-full py-1.5 text-xs text-gray-500 border border-gray-200 rounded-md hover:bg-gray-50 disabled:opacity-50"
+                      >
+                        {loadingMore ? "読み込み中…" : "もっと読み込む"}
+                      </button>
+                    )}
+                  </>
                 )}
               </div>
-            </ScrollArea>
+            </div>
           )}
         </>
       )}
