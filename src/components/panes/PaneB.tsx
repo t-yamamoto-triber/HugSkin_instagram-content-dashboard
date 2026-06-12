@@ -117,13 +117,17 @@ function CalendarCell({ post, day, isToday, isRef, isSaved, onRef, onSave }: {
   );
 }
 
+const MAX_CONTEXT_POSTS = 5;
+
 interface Props {
   refPost: CompetitorPost | null;
   onRefPostChange: (post: CompetitorPost | null) => void;
   brandSettings: BrandSettings;
+  selectedSavedPosts: CompetitorPost[];
+  onSelectedSavedPostsChange: (posts: CompetitorPost[]) => void;
 }
 
-export default function PaneB({ refPost, onRefPostChange, brandSettings }: Props) {
+export default function PaneB({ refPost, onRefPostChange, brandSettings, selectedSavedPosts, onSelectedSavedPostsChange }: Props) {
   const [tab, setTab] = useState<CompetitorTab>("competitor");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [account, setAccount] = useState("");
@@ -380,29 +384,70 @@ export default function PaneB({ refPost, onRefPostChange, brandSettings }: Props
             savedPosts.length === 0 ? (
               <div className="text-xs text-gray-400 text-center py-8">保存済みの投稿はありません</div>
             ) : (
-              <div className="grid grid-cols-2 gap-2">
-                {savedPosts.map((p) => (
-                  <div key={p.id} className="border border-gray-200 rounded-md overflow-hidden">
-                    <div className="relative h-20 bg-gray-100">
-                      {p.imageUrl
-                        // eslint-disable-next-line @next/next/no-img-element
-                        ? <img src={proxySrc(p.imageUrl)} alt="" className="w-full h-full object-cover" />
-                        : <div className="w-full h-full bg-gray-200" />
+              <>
+                <div className="flex items-center gap-1.5 mb-2 px-0.5">
+                  <span className="text-[11px] text-gray-500">
+                    Cペインに渡す投稿を選択（最大{MAX_CONTEXT_POSTS}件）
+                  </span>
+                  {selectedSavedPosts.length > 0 && (
+                    <span className="text-[11px] bg-gray-900 text-white px-1.5 py-0.5 rounded-full">
+                      {selectedSavedPosts.length}/{MAX_CONTEXT_POSTS}
+                    </span>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {savedPosts.map((p) => {
+                    const isSelected = selectedSavedPosts.some(s => s.id === p.id);
+                    const canSelect = isSelected || selectedSavedPosts.length < MAX_CONTEXT_POSTS;
+                    const toggleContext = () => {
+                      if (isSelected) {
+                        onSelectedSavedPostsChange(selectedSavedPosts.filter(s => s.id !== p.id));
+                      } else if (canSelect) {
+                        onSelectedSavedPostsChange([...selectedSavedPosts, p]);
                       }
-                      <button
-                        onClick={() => toggleSave(p)}
-                        className="absolute top-1 right-1 bg-white text-[10px] px-1.5 py-0.5 rounded border border-gray-200 hover:bg-gray-50"
+                    };
+                    return (
+                      <div
+                        key={p.id}
+                        className={`border rounded-md overflow-hidden transition-all ${
+                          isSelected ? "border-gray-900 border-2" : "border-gray-200"
+                        }`}
                       >
-                        解除
-                      </button>
-                    </div>
-                    <div className="p-1.5">
-                      <p className="text-[11px] text-gray-500 line-clamp-2">{p.caption || "（キャプションなし）"}</p>
-                      <p className="text-[11px] text-gray-400">@{p.account}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                        <div className="relative h-20 bg-gray-100">
+                          {p.imageUrl
+                            // eslint-disable-next-line @next/next/no-img-element
+                            ? <img src={proxySrc(p.imageUrl)} alt="" className="w-full h-full object-cover" />
+                            : <div className="w-full h-full bg-gray-200" />
+                          }
+                          <button
+                            onClick={() => toggleSave(p)}
+                            className="absolute top-1 right-1 bg-white text-[10px] px-1.5 py-0.5 rounded border border-gray-200 hover:bg-gray-50"
+                          >
+                            解除
+                          </button>
+                          <button
+                            onClick={toggleContext}
+                            disabled={!isSelected && !canSelect}
+                            className={`absolute bottom-1 left-1 text-[10px] px-1.5 py-0.5 rounded border transition-colors ${
+                              isSelected
+                                ? "bg-gray-900 text-white border-gray-900"
+                                : canSelect
+                                  ? "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                                  : "bg-gray-100 text-gray-300 border-gray-200 cursor-not-allowed"
+                            }`}
+                          >
+                            {isSelected ? "✓ C参照中" : "Cに渡す"}
+                          </button>
+                        </div>
+                        <div className="p-1.5">
+                          <p className="text-[11px] text-gray-500 line-clamp-2">{p.caption || "（キャプションなし）"}</p>
+                          <p className="text-[11px] text-gray-400">@{p.account}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
             )
           )}
         </div>

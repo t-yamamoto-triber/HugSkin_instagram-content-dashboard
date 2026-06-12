@@ -8,10 +8,12 @@ import PaneC from "@/components/panes/PaneC";
 import PaneD from "@/components/panes/PaneD";
 import SettingsModal from "@/components/dashboard/SettingsModal";
 import DraftListModal from "@/components/dashboard/DraftListModal";
-import type { CompetitorPost, BrandSettings, ImageFormat } from "@/types";
+import type { CompetitorPost, InstagramPost, BrandSettings, ImageFormat } from "@/types";
 
 export default function Dashboard() {
   const [refPost, setRefPost] = useState<CompetitorPost | null>(null);
+  const [ownPosts, setOwnPosts] = useState<InstagramPost[]>([]);
+  const [selectedSavedPosts, setSelectedSavedPosts] = useState<CompetitorPost[]>([]);
   const [confirmedCaption, setConfirmedCaption] = useState<string | null>(null);
   const [imageFormat, setImageFormat] = useState<ImageFormat>("single");
   const [generatedImageUrls, setGeneratedImageUrls] = useState<string[]>([]);
@@ -110,10 +112,27 @@ export default function Dashboard() {
       {/* 4-pane grid */}
       <div className="flex-1 grid grid-cols-2 grid-rows-2 overflow-hidden">
         <div className="border-r border-b border-gray-200 overflow-hidden">
-          <PaneA />
+          <PaneA
+            onPostsLoaded={setOwnPosts}
+            onAddCompetitorAccount={(username) => {
+              const next: BrandSettings = {
+                ...brandSettings,
+                competitorAccounts: brandSettings.competitorAccounts.some(a => a.username === username)
+                  ? brandSettings.competitorAccounts
+                  : [...brandSettings.competitorAccounts, { username, label: `@${username}` }],
+              };
+              handleBrandSettingsSave(next);
+            }}
+          />
         </div>
         <div className="border-b border-gray-200 overflow-hidden">
-          <PaneB refPost={refPost} onRefPostChange={setRefPost} brandSettings={brandSettings} />
+          <PaneB
+            refPost={refPost}
+            onRefPostChange={setRefPost}
+            brandSettings={brandSettings}
+            selectedSavedPosts={selectedSavedPosts}
+            onSelectedSavedPostsChange={setSelectedSavedPosts}
+          />
         </div>
         <div className="border-r border-gray-200 overflow-hidden">
           <PaneC
@@ -123,6 +142,8 @@ export default function Dashboard() {
             onConfirm={handleCaptionConfirm}
             onReset={handleCaptionReset}
             onThemeChange={setCurrentTheme}
+            ownPostCaptions={ownPosts.slice(0, 30).map(p => p.caption ?? "").filter(Boolean)}
+            selectedSavedPosts={selectedSavedPosts}
           />
         </div>
         <div className="overflow-hidden">

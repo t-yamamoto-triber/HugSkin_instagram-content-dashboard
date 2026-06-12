@@ -4,7 +4,6 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import type { CompetitorPost, BrandSettings } from "@/types";
 
 interface Round {
@@ -19,9 +18,11 @@ interface Props {
   onConfirm: (caption: string) => void;
   onReset: () => void;
   onThemeChange?: (theme: string) => void;
+  ownPostCaptions?: string[];
+  selectedSavedPosts?: CompetitorPost[];
 }
 
-export default function PaneC({ refPost, brandSettings, confirmedCaption, onConfirm, onReset, onThemeChange }: Props) {
+export default function PaneC({ refPost, brandSettings, confirmedCaption, onConfirm, onReset, onThemeChange, ownPostCaptions = [], selectedSavedPosts = [] }: Props) {
   const [theme, setTheme] = useState("");
   const [rounds, setRounds] = useState<Round[]>([]);
   const [viewingRound, setViewingRound] = useState(0);
@@ -52,6 +53,8 @@ export default function PaneC({ refPost, brandSettings, confirmedCaption, onConf
       feedback: fb ?? "",
       previousProposals: prevRound?.proposals ?? [],
       round: rounds.length + 1,
+      ownPostCaptions,
+      selectedSavedPostCaptions: selectedSavedPosts.map(p => p.caption).filter(Boolean),
     };
 
     try {
@@ -100,9 +103,19 @@ export default function PaneC({ refPost, brandSettings, confirmedCaption, onConf
   return (
     <div className="flex flex-col h-full bg-white">
       {/* Header */}
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-200 shrink-0">
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-200 shrink-0 flex-wrap">
         <span className="text-xs font-semibold text-gray-700">C &nbsp; AIキャプションエディタ</span>
         <div className="flex-1" />
+        {ownPostCaptions.length > 0 && (
+          <span className="text-[11px] text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-full">
+            自社{ownPostCaptions.length}件
+          </span>
+        )}
+        {selectedSavedPosts.length > 0 && (
+          <span className="text-[11px] text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full">
+            競合{selectedSavedPosts.length}件
+          </span>
+        )}
         {rounds.length > 0 && (
           <span className="text-[11px] text-gray-400">ラウンド {viewingRound + 1} / {rounds.length}</span>
         )}

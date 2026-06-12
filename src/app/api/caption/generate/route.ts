@@ -4,7 +4,7 @@ import Anthropic from "@anthropic-ai/sdk";
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 export async function POST(req: Request) {
-  const { theme, refPostCaption, regulation, feedback, previousProposals, round } =
+  const { theme, refPostCaption, regulation, feedback, previousProposals, round, ownPostCaptions, selectedSavedPostCaptions } =
     await req.json();
 
   if (!process.env.ANTHROPIC_API_KEY) {
@@ -26,9 +26,18 @@ ${regulation ? `【ブランドレギュレーション】\n${regulation}` : ""}
 
   const userLines: string[] = [];
 
-  if (refPostCaption) {
+  if (ownPostCaptions && ownPostCaptions.length > 0) {
+    const captions = (ownPostCaptions as string[]).slice(0, 30).join("\n---\n");
+    userLines.push(`【自社の過去投稿キャプション（直近${ownPostCaptions.length}件）】\n${captions}`);
+  }
+
+  if (selectedSavedPostCaptions && selectedSavedPostCaptions.length > 0) {
+    const captions = (selectedSavedPostCaptions as string[]).join("\n---\n");
+    userLines.push(`【参考にする競合投稿キャプション（${selectedSavedPostCaptions.length}件）】\n${captions}`);
+  } else if (refPostCaption) {
     userLines.push(`【参考にした競合投稿のキャプション】\n${refPostCaption}`);
   }
+
   if (theme) {
     userLines.push(`【今回の投稿テーマ】\n${theme}`);
   }
