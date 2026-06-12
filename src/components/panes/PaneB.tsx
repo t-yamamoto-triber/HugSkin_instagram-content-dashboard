@@ -161,6 +161,7 @@ export default function PaneB({ refPost, onRefPostChange, brandSettings, selecte
               caption: p.caption ?? "",
               imageUrl: p.thumbnail_url ?? "",
               permalink: p.post_url ?? "",
+              timestamp: p.saved_at ?? "",
             };
           }
           setSaved(map);
