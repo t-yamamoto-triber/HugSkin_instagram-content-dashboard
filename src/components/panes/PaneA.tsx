@@ -6,7 +6,25 @@ import type { InstagramPost, ViewMode } from "@/types";
 interface SuggestedAccount {
   username: string;
   fullName?: string;
+  biography?: string;
+  profilePicUrl?: string;
   followersCount?: number;
+  isBusinessAccount?: boolean;
+  postsCount?: number;
+}
+
+function extractHashtagsWithCount(posts: InstagramPost[]): { tag: string; count: number }[] {
+  const counts: Record<string, number> = {};
+  for (const post of posts.slice(0, 30)) {
+    const tags = (post.caption ?? "").match(/#([^\s#、。！？!?,.]+)/g) ?? [];
+    for (const tag of tags) {
+      const key = tag.replace(/^#/, "").toLowerCase();
+      counts[key] = (counts[key] ?? 0) + 1;
+    }
+  }
+  return Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .map(([tag, count]) => ({ tag, count }));
 }
 
 const MONTH_NAMES = ["1月","2月","3月","4月","5月","6月","7月","8月","9月","10月","11月","12月"];
@@ -103,10 +121,15 @@ export default function PaneA({ onPostsLoaded, onAddCompetitorAccount }: Props) 
 
   // Account suggestion panel
   const [suggestOpen, setSuggestOpen] = useState(false);
+  const [suggestStep, setSuggestStep] = useState<"hashtags" | "accounts">("hashtags");
   const [suggestLoading, setSuggestLoading] = useState(false);
   const [suggestError, setSuggestError] = useState<string | null>(null);
   const [suggestedAccounts, setSuggestedAccounts] = useState<SuggestedAccount[]>([]);
   const [addedUsernames, setAddedUsernames] = useState<Set<string>>(new Set());
+  // Settings
+  const [businessOnly, setBusinessOnly] = useState(true);
+  // Hashtag selection
+  const [selectedHashtags, setSelectedHashtags] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetch("/api/instagram/posts")
@@ -143,17 +166,28 @@ export default function PaneA({ onPostsLoaded, onAddCompetitorAccount }: Props) 
       .finally(() => setLoadingMore(false));
   };
 
-  const fetchSuggestedAccounts = async () => {
+  const openSuggestPanel = () => {
     setSuggestOpen(true);
-    if (suggestedAccounts.length > 0) return; // already fetched
+    setSuggestStep("hashtags");
+    setSuggestError(null);
+    setSuggestedAccounts([]);
+    setSelectedHashtags(new Set());
+  };
+
+  const searchAccounts = async () => {
+    if (selectedHashtags.size === 0) return;
+    setSuggestStep("accounts");
     setSuggestLoading(true);
     setSuggestError(null);
+    setSuggestedAccounts([]);
     try {
-      const captions = posts.slice(0, 30).map(p => p.caption ?? "").filter(Boolean);
       const res = await fetch("/api/account/suggest", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ captions }),
+        body: JSON.stringify({
+          hashtags: Array.from(selectedHashtags),
+          businessOnly,
+        }),
       });
       const data = await res.json();
       if (data.error) { setSuggestError(data.error); return; }
@@ -169,6 +203,16 @@ export default function PaneA({ onPostsLoaded, onAddCompetitorAccount }: Props) 
     onAddCompetitorAccount?.(username);
     setAddedUsernames(prev => new Set([...prev, username]));
   };
+
+  const toggleHashtag = (tag: string) => {
+    setSelectedHashtags(prev => {
+      const next = new Set(prev);
+      if (next.has(tag)) next.delete(tag); else next.add(tag);
+      return next;
+    });
+  };
+
+  const hashtags = extractHashtagsWithCount(posts);
 
   // Map posts to date key "M/D"
   const postByDate: Record<string, InstagramPost> = {};
@@ -191,7 +235,7 @@ export default function PaneA({ onPostsLoaded, onAddCompetitorAccount }: Props) 
         <span className="text-xs font-semibold text-gray-700">A &nbsp; 自社過去投稿</span>
         <div className="flex-1" />
         <button
-          onClick={fetchSuggestedAccounts}
+          onClick={openSuggestPanel}
           disabled={posts.length === 0}
           className="px-2.5 py-1 rounded-full text-xs border border-gray-300 text-gray-600 hover:border-gray-500 hover:bg-gray-50 transition-colors disabled:opacity-40"
         >
@@ -214,53 +258,142 @@ export default function PaneA({ onPostsLoaded, onAddCompetitorAccount }: Props) 
       {suggestOpen && (
         <div className="absolute inset-0 z-40 flex">
           <div className="flex-1" onClick={() => setSuggestOpen(false)} />
-          <div className="w-64 h-full bg-white border-l border-gray-200 shadow-xl flex flex-col">
-            <div className="flex items-center justify-between px-3 py-2 border-b border-gray-200">
-              <span className="text-xs font-semibold text-gray-700">おすすめアカウント</span>
+          <div className="w-72 h-full bg-white border-l border-gray-200 shadow-xl flex flex-col">
+
+            {/* Panel header */}
+            <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-200 shrink-0">
+              {suggestStep === "accounts" && (
+                <button
+                  onClick={() => { setSuggestStep("hashtags"); setSuggestedAccounts([]); setSuggestError(null); }}
+                  className="text-gray-400 hover:text-gray-700 text-sm"
+                >
+                  ‹
+                </button>
+              )}
+              <span className="text-xs font-semibold text-gray-700 flex-1">
+                {suggestStep === "hashtags" ? "① ハッシュタグを選ぶ" : "② アカウント候補"}
+              </span>
               <button onClick={() => setSuggestOpen(false)} className="text-gray-400 hover:text-gray-700 text-lg leading-none">×</button>
             </div>
-            <div className="flex-1 overflow-y-auto p-3">
-              {suggestLoading && (
-                <div className="flex flex-col items-center gap-2 py-8">
-                  <div className="w-5 h-5 border-2 border-gray-300 border-t-gray-700 rounded-full animate-spin" />
-                  <span className="text-xs text-gray-400">ハッシュタグで検索中…</span>
+
+            {/* Step 1: Hashtag selection */}
+            {suggestStep === "hashtags" && (
+              <>
+                {/* Settings */}
+                <div className="px-3 py-2 border-b border-gray-100 shrink-0">
+                  <p className="text-[11px] text-gray-500 font-medium mb-1.5">フィルター設定</p>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={businessOnly}
+                      onChange={(e) => setBusinessOnly(e.target.checked)}
+                      className="rounded"
+                    />
+                    <span className="text-xs text-gray-700">企業アカウントのみ</span>
+                  </label>
                 </div>
-              )}
-              {suggestError && (
-                <p className="text-xs text-red-500 bg-red-50 px-2 py-2 rounded">{suggestError}</p>
-              )}
-              {!suggestLoading && !suggestError && suggestedAccounts.length === 0 && (
-                <p className="text-xs text-gray-400 text-center py-8">候補が見つかりませんでした</p>
-              )}
-              {!suggestLoading && suggestedAccounts.map((acc) => {
-                const added = addedUsernames.has(acc.username);
-                return (
-                  <div key={acc.username} className="flex items-center gap-2 py-2 border-b border-gray-100 last:border-0">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-gray-800 truncate">@{acc.username}</p>
-                      {acc.fullName && <p className="text-[11px] text-gray-400 truncate">{acc.fullName}</p>}
-                      {acc.followersCount != null && (
-                        <p className="text-[11px] text-gray-400">{acc.followersCount.toLocaleString()} フォロワー</p>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => handleAddAccount(acc.username)}
-                      disabled={added}
-                      className={`shrink-0 text-[10px] px-2 py-1 rounded border transition-colors ${
-                        added
-                          ? "bg-gray-100 text-gray-400 border-gray-200 cursor-default"
-                          : "border-gray-300 text-gray-700 hover:bg-gray-50"
-                      }`}
-                    >
-                      {added ? "追加済み" : "Bに追加"}
-                    </button>
+
+                <div className="flex-1 overflow-y-auto p-3">
+                  {hashtags.length === 0 ? (
+                    <p className="text-xs text-gray-400 text-center py-8">投稿にハッシュタグが見つかりません</p>
+                  ) : (
+                    <>
+                      <p className="text-[11px] text-gray-400 mb-2">自社投稿で使用中のハッシュタグ（{hashtags.length}件）</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {hashtags.map(({ tag, count }) => {
+                          const selected = selectedHashtags.has(tag);
+                          return (
+                            <button
+                              key={tag}
+                              onClick={() => toggleHashtag(tag)}
+                              className={`px-2 py-1 rounded-full text-[11px] border transition-colors ${
+                                selected
+                                  ? "bg-gray-900 text-white border-gray-900"
+                                  : "border-gray-200 text-gray-600 hover:border-gray-400"
+                              }`}
+                            >
+                              #{tag}
+                              <span className={`ml-1 ${selected ? "text-gray-300" : "text-gray-400"}`}>{count}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                <div className="px-3 py-2.5 border-t border-gray-100 shrink-0">
+                  <button
+                    onClick={searchAccounts}
+                    disabled={selectedHashtags.size === 0}
+                    className="w-full py-2 text-xs font-medium bg-gray-900 text-white rounded-md disabled:opacity-40 hover:bg-gray-700 transition-colors"
+                  >
+                    {selectedHashtags.size > 0 ? `${selectedHashtags.size}件のタグで検索する` : "タグを選んでください"}
+                  </button>
+                </div>
+              </>
+            )}
+
+            {/* Step 2: Account results */}
+            {suggestStep === "accounts" && (
+              <div className="flex-1 overflow-y-auto">
+                {suggestLoading && (
+                  <div className="flex flex-col items-center gap-2 py-10">
+                    <div className="w-5 h-5 border-2 border-gray-300 border-t-gray-700 rounded-full animate-spin" />
+                    <span className="text-xs text-gray-500">検索中…（1〜2分かかります）</span>
+                    <span className="text-[11px] text-gray-400 text-center px-4">ハッシュタグ投稿を取得 → プロフィールを取得 の2段階で検索しています</span>
                   </div>
-                );
-              })}
-            </div>
-            <div className="px-3 py-2 border-t border-gray-100">
-              <p className="text-[11px] text-gray-400">自社投稿のハッシュタグをもとに検索しています</p>
-            </div>
+                )}
+                {suggestError && (
+                  <p className="text-xs text-red-500 bg-red-50 m-3 px-3 py-2 rounded-md">{suggestError}</p>
+                )}
+                {!suggestLoading && !suggestError && suggestedAccounts.length === 0 && (
+                  <p className="text-xs text-gray-400 text-center py-10">候補が見つかりませんでした</p>
+                )}
+                {!suggestLoading && suggestedAccounts.map((acc) => {
+                  const added = addedUsernames.has(acc.username);
+                  return (
+                    <div key={acc.username} className="flex gap-2.5 p-3 border-b border-gray-100 last:border-0">
+                      {/* Profile pic */}
+                      <div className="shrink-0 w-10 h-10 rounded-full bg-gray-200 overflow-hidden">
+                        {acc.profilePicUrl
+                          // eslint-disable-next-line @next/next/no-img-element
+                          ? <img src={`/api/proxy/image?url=${encodeURIComponent(acc.profilePicUrl)}`} alt="" className="w-full h-full object-cover" />
+                          : <div className="w-full h-full bg-gray-300" />
+                        }
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1 flex-wrap">
+                          <p className="text-xs font-medium text-gray-800 truncate">@{acc.username}</p>
+                          {acc.isBusinessAccount && (
+                            <span className="text-[10px] bg-blue-50 text-blue-600 px-1 py-0.5 rounded">企業</span>
+                          )}
+                        </div>
+                        {acc.fullName && <p className="text-[11px] text-gray-500 truncate">{acc.fullName}</p>}
+                        {acc.followersCount != null && (
+                          <p className="text-[11px] text-gray-400">{acc.followersCount.toLocaleString()} フォロワー</p>
+                        )}
+                        {acc.biography && (
+                          <p className="text-[11px] text-gray-500 mt-0.5 line-clamp-2 leading-relaxed">{acc.biography}</p>
+                        )}
+                        <button
+                          onClick={() => handleAddAccount(acc.username)}
+                          disabled={added}
+                          className={`mt-1.5 text-[10px] px-2 py-1 rounded border transition-colors ${
+                            added
+                              ? "bg-gray-100 text-gray-400 border-gray-200 cursor-default"
+                              : "border-gray-900 text-gray-800 hover:bg-gray-50"
+                          }`}
+                        >
+                          {added ? "✓ 追加済み" : "Bに追加"}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
           </div>
         </div>
       )}
