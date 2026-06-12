@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import Anthropic from "@anthropic-ai/sdk";
 
 export interface SuggestedAccount {
   username: string;
@@ -10,28 +11,39 @@ export interface SuggestedAccount {
   postsCount?: number;
 }
 
-async function fetchHashtagPosts(hashtags: string[], token: string): Promise<string[]> {
-  const res = await fetch(
-    `https://api.apify.com/v2/acts/apify~instagram-hashtag-scraper/run-sync-get-dataset-items?token=${token}&timeout=90&memory=256`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        hashtags,
-        resultsLimit: 30,
-        proxy: { useApifyProxy: true },
-      }),
-    }
-  );
-  if (!res.ok) throw new Error(`Hashtag scraper error: ${res.status}`);
-  const items: Array<{ ownerUsername?: string }> = await res.json();
+async function suggestUsernamesWithClaude(captions: string[], hint: string): Promise<string[]> {
+  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-  // Deduplicate usernames
-  const seen = new Set<string>();
-  for (const item of items) {
-    if (item.ownerUsername) seen.add(item.ownerUsername);
-  }
-  return Array.from(seen).slice(0, 20);
+  const captionText = captions.slice(0, 30).join("\n---\n");
+
+  const prompt = `あなたはInstagramマーケティングの専門家です。
+以下は日本のあるブランドアカウントの過去投稿のキャプションです。
+
+【投稿キャプション一覧】
+${captionText}
+
+${hint ? `【補足情報】\n${hint}\n` : ""}
+このブランドがベンチマークすべき競合・参考になるInstagramアカウントのユーザー名を10〜15件提案してください。
+実在する日本のブランド・企業アカウントを優先してください。
+
+必ずJSON配列だけを返してください。説明文は不要です。
+例: ["account1", "account2", "account3"]`;
+
+  const message = await client.messages.create({
+    model: "claude-haiku-4-5",
+    max_tokens: 500,
+    messages: [{ role: "user", content: prompt }],
+  });
+
+  const raw = (message.content[0] as { type: string; text: string }).text.trim();
+
+  // Extract JSON array from response
+  const match = raw.match(/\[[\s\S]*\]/);
+  if (!match) return [];
+
+  const parsed: unknown = JSON.parse(match[0]);
+  if (!Array.isArray(parsed)) return [];
+  return (parsed as unknown[]).filter((x): x is string => typeof x === "string").slice(0, 15);
 }
 
 async function fetchProfiles(usernames: string[], token: string): Promise<SuggestedAccount[]> {
@@ -72,34 +84,34 @@ async function fetchProfiles(usernames: string[], token: string): Promise<Sugges
 }
 
 export async function POST(req: NextRequest) {
-  const { hashtags, businessOnly = false } = await req.json();
+  const { captions, businessOnly = false, hint = "" } = await req.json();
 
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return NextResponse.json({ error: "ANTHROPIC_API_KEY is not set" }, { status: 500 });
+  }
   if (!process.env.APIFY_API_TOKEN) {
     return NextResponse.json({ error: "APIFY_API_TOKEN is not set" }, { status: 500 });
   }
 
-  if (!hashtags || hashtags.length === 0) {
+  if (!captions || captions.length === 0) {
     return NextResponse.json({ accounts: [] });
   }
 
-  const token = process.env.APIFY_API_TOKEN;
-
   try {
-    // Step 1: Get usernames from hashtag posts
-    const usernames = await fetchHashtagPosts(hashtags.slice(0, 3), token);
+    // Step 1: Claude suggests account usernames
+    const usernames = await suggestUsernamesWithClaude(captions, hint);
     if (usernames.length === 0) {
-      return NextResponse.json({ accounts: [] });
+      return NextResponse.json({ accounts: [], usernames: [] });
     }
 
-    // Step 2: Get full profile info for each username
-    const accounts = await fetchProfiles(usernames, token);
+    // Step 2: Fetch profiles via Apify
+    const accounts = await fetchProfiles(usernames, process.env.APIFY_API_TOKEN);
 
-    // Filter by business account if requested
     const filtered = businessOnly
       ? accounts.filter((a) => a.isBusinessAccount === true)
       : accounts;
 
-    return NextResponse.json({ accounts: filtered });
+    return NextResponse.json({ accounts: filtered, usernames });
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }
