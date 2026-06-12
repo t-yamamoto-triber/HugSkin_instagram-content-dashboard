@@ -125,9 +125,10 @@ interface Props {
   brandSettings: BrandSettings;
   selectedSavedPosts: CompetitorPost[];
   onSelectedSavedPostsChange: (posts: CompetitorPost[]) => void;
+  userEmail?: string | null;
 }
 
-export default function PaneB({ refPost, onRefPostChange, brandSettings, selectedSavedPosts, onSelectedSavedPostsChange }: Props) {
+export default function PaneB({ refPost, onRefPostChange, brandSettings, selectedSavedPosts, onSelectedSavedPostsChange, userEmail }: Props) {
   const [tab, setTab] = useState<CompetitorTab>("competitor");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [account, setAccount] = useState("");
@@ -145,6 +146,28 @@ export default function PaneB({ refPost, onRefPostChange, brandSettings, selecte
   const [saved, setSaved] = useState<Record<string, CompetitorPost>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Load saved posts from Supabase on mount
+  useEffect(() => {
+    fetch("/api/saved-posts")
+      .then(r => r.json())
+      .then(data => {
+        if (!data.error && data.posts) {
+          const map: Record<string, CompetitorPost> = {};
+          for (const p of data.posts) {
+            map[p.post_id] = {
+              id: p.post_id,
+              account: p.username ?? "",
+              caption: p.caption ?? "",
+              imageUrl: p.thumbnail_url ?? "",
+              permalink: p.post_url ?? "",
+            };
+          }
+          setSaved(map);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const currentPosts = postsByAccount[account] ?? [];
   const savedPosts = Object.values(saved);
@@ -185,13 +208,34 @@ export default function PaneB({ refPost, onRefPostChange, brandSettings, selecte
     }
   }, []);
 
-  const toggleSave = (post: CompetitorPost) => {
+  const toggleSave = async (post: CompetitorPost) => {
+    const isSaved = !!saved[post.id];
     setSaved((s) => {
       const next = { ...s };
       if (next[post.id]) { delete next[post.id]; }
       else { next[post.id] = post; }
       return next;
     });
+    if (isSaved) {
+      await fetch("/api/saved-posts", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ postId: post.id }),
+      }).catch(() => {});
+    } else {
+      await fetch("/api/saved-posts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          postId: post.id,
+          username: post.account,
+          postUrl: post.permalink,
+          thumbnailUrl: post.imageUrl,
+          caption: post.caption,
+          savedBy: userEmail,
+        }),
+      }).catch(() => {});
+    }
   };
 
   const toggleRef = (post: CompetitorPost) =>

@@ -8,6 +8,7 @@ import PaneC from "@/components/panes/PaneC";
 import PaneD from "@/components/panes/PaneD";
 import SettingsModal from "@/components/dashboard/SettingsModal";
 import DraftListModal from "@/components/dashboard/DraftListModal";
+import { createSupabaseBrowserClient } from "@/lib/supabase";
 import type { CompetitorPost, InstagramPost, BrandSettings, ImageFormat } from "@/types";
 
 export default function Dashboard() {
@@ -15,6 +16,7 @@ export default function Dashboard() {
   const [ownPosts, setOwnPosts] = useState<InstagramPost[]>([]);
   const [selectedSavedPosts, setSelectedSavedPosts] = useState<CompetitorPost[]>([]);
   const [confirmedCaption, setConfirmedCaption] = useState<string | null>(null);
+  const [proposalRounds, setProposalRounds] = useState<{ proposals: string[]; feedback: string }[]>([]);
   const [imageFormat, setImageFormat] = useState<ImageFormat>("single");
   const [generatedImageUrls, setGeneratedImageUrls] = useState<string[]>([]);
   const [currentTheme, setCurrentTheme] = useState("");
@@ -23,27 +25,78 @@ export default function Dashboard() {
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [draftListOpen, setDraftListOpen] = useState(false);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
   const [brandSettings, setBrandSettings] = useState<BrandSettings>({
     regulation: "",
     imageDirection: "",
     competitorAccounts: [],
   });
 
+  // Load user, brand settings and competitor accounts from Supabase on mount
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem("brandSettings");
-      if (saved) setBrandSettings(JSON.parse(saved));
-    } catch { /* ignore */ }
+    const supabase = createSupabaseBrowserClient();
+
+    supabase.auth.getUser().then(({ data }) => {
+      setUserEmail(data.user?.email ?? null);
+    });
+
+    // Load brand settings
+    fetch("/api/settings")
+      .then(r => r.json())
+      .then(data => {
+        if (!data.error) {
+          setBrandSettings(prev => ({
+            ...prev,
+            regulation: data.regulation ?? "",
+            imageDirection: data.imageDirection ?? "",
+          }));
+        }
+      })
+      .catch(() => {});
+
+    // Load competitor accounts
+    fetch("/api/competitor-accounts")
+      .then(r => r.json())
+      .then(data => {
+        if (!data.error) {
+          setBrandSettings(prev => ({ ...prev, competitorAccounts: data.accounts ?? [] }));
+        }
+      })
+      .catch(() => {});
   }, []);
 
-  const handleBrandSettingsSave = (s: BrandSettings) => {
+  const handleBrandSettingsSave = async (s: BrandSettings) => {
     setBrandSettings(s);
-    localStorage.setItem("brandSettings", JSON.stringify(s));
+
+    // Save regulation + imageDirection
+    await fetch("/api/settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        regulation: s.regulation,
+        imageDirection: s.imageDirection,
+        updatedBy: userEmail,
+      }),
+    });
+
+    // Sync competitor accounts: add new ones
+    for (const acc of s.competitorAccounts) {
+      await fetch("/api/competitor-accounts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: acc.username, label: acc.label, addedBy: userEmail }),
+      });
+    }
   };
 
-  const handleCaptionConfirm = (caption: string) => setConfirmedCaption(caption);
+  const handleCaptionConfirm = (caption: string, rounds: { proposals: string[]; feedback: string }[]) => {
+    setConfirmedCaption(caption);
+    setProposalRounds(rounds);
+  };
+
   const handleCaptionReset = () => {
     setConfirmedCaption(null);
+    setProposalRounds([]);
     setGeneratedImageUrls([]);
     setCurrentDraftId(null);
   };
@@ -65,6 +118,8 @@ export default function Dashboard() {
           imageUrls: generatedImageUrls,
           imageFormat,
           theme: currentTheme,
+          proposalRounds,
+          updatedBy: userEmail,
         }),
       });
       const data = await res.json();
@@ -88,7 +143,14 @@ export default function Dashboard() {
     setImageFormat(draft.image_format ?? "single");
     setGeneratedImageUrls(draft.image_urls ?? []);
     setCurrentTheme(draft.theme ?? "");
+    setProposalRounds(draft.proposal_rounds ?? []);
     setCurrentDraftId(draft.id);
+  };
+
+  const handleSignOut = async () => {
+    const supabase = createSupabaseBrowserClient();
+    await supabase.auth.signOut();
+    window.location.href = "/login";
   };
 
   return (
@@ -102,10 +164,16 @@ export default function Dashboard() {
             {saveMsg}
           </span>
         )}
+        {userEmail && (
+          <span className="text-xs text-gray-400 hidden sm:inline">{userEmail}</span>
+        )}
         <Button variant="ghost" size="sm" onClick={() => setSettingsOpen(true)}>設定</Button>
         <Button variant="ghost" size="sm" onClick={() => setDraftListOpen(true)}>下書き一覧</Button>
         <Button size="sm" onClick={handleSaveDraft} disabled={saving}>
           {saving ? "保存中…" : currentDraftId ? "上書き保存" : "下書き保存"}
+        </Button>
+        <Button variant="ghost" size="sm" onClick={handleSignOut} className="text-gray-400 text-xs">
+          ログアウト
         </Button>
       </header>
 
@@ -114,14 +182,14 @@ export default function Dashboard() {
         <div className="border-r border-b border-gray-200 overflow-hidden">
           <PaneA
             onPostsLoaded={setOwnPosts}
-            onAddCompetitorAccount={(username) => {
+            onAddCompetitorAccount={async (username) => {
               const next: BrandSettings = {
                 ...brandSettings,
                 competitorAccounts: brandSettings.competitorAccounts.some(a => a.username === username)
                   ? brandSettings.competitorAccounts
                   : [...brandSettings.competitorAccounts, { username, label: `@${username}` }],
               };
-              handleBrandSettingsSave(next);
+              await handleBrandSettingsSave(next);
             }}
           />
         </div>
@@ -132,6 +200,7 @@ export default function Dashboard() {
             brandSettings={brandSettings}
             selectedSavedPosts={selectedSavedPosts}
             onSelectedSavedPostsChange={setSelectedSavedPosts}
+            userEmail={userEmail}
           />
         </div>
         <div className="border-r border-gray-200 overflow-hidden">
@@ -162,6 +231,7 @@ export default function Dashboard() {
         onClose={() => setSettingsOpen(false)}
         settings={brandSettings}
         onSave={handleBrandSettingsSave}
+        userEmail={userEmail}
       />
       <DraftListModal
         open={draftListOpen}

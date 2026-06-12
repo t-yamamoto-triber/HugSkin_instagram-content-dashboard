@@ -19,9 +19,10 @@ interface Props {
   onClose: () => void;
   settings: BrandSettings;
   onSave: (settings: BrandSettings) => void;
+  userEmail?: string | null;
 }
 
-export default function SettingsModal({ open, onClose, settings, onSave }: Props) {
+export default function SettingsModal({ open, onClose, settings, onSave, userEmail: _userEmail }: Props) {
   const [regulation, setRegulation] = useState(settings.regulation);
   const [imageDirection, setImageDirection] = useState(settings.imageDirection ?? "");
   const [accounts, setAccounts] = useState(settings.competitorAccounts);

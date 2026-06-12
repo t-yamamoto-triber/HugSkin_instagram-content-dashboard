@@ -24,12 +24,20 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const sb = getClient();
   const body = await req.json();
-  const { id, caption, imageUrls, imageFormat, theme } = body;
+  const { id, caption, imageUrls, imageFormat, theme, proposalRounds, updatedBy } = body;
 
   if (id) {
     const { data, error } = await sb
       .from("drafts")
-      .update({ caption, image_urls: imageUrls, image_format: imageFormat, theme, updated_at: new Date().toISOString() })
+      .update({
+        caption,
+        image_urls: imageUrls,
+        image_format: imageFormat,
+        theme,
+        proposal_rounds: proposalRounds ?? [],
+        updated_by: updatedBy ?? null,
+        updated_at: new Date().toISOString(),
+      })
       .eq("id", id)
       .select()
       .single();
@@ -38,7 +46,15 @@ export async function POST(req: NextRequest) {
   } else {
     const { data, error } = await sb
       .from("drafts")
-      .insert({ caption, image_urls: imageUrls ?? [], image_format: imageFormat ?? "single", theme })
+      .insert({
+        caption,
+        image_urls: imageUrls ?? [],
+        image_format: imageFormat ?? "single",
+        theme,
+        proposal_rounds: proposalRounds ?? [],
+        created_by: updatedBy ?? null,
+        updated_by: updatedBy ?? null,
+      })
       .select()
       .single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });

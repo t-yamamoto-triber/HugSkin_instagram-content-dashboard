@@ -15,7 +15,7 @@ interface Props {
   refPost: CompetitorPost | null;
   brandSettings: BrandSettings;
   confirmedCaption: string | null;
-  onConfirm: (caption: string) => void;
+  onConfirm: (caption: string, rounds: Round[]) => void;
   onReset: () => void;
   onThemeChange?: (theme: string) => void;
   ownPostCaptions?: string[];
@@ -287,7 +287,7 @@ export default function PaneC({ refPost, brandSettings, confirmedCaption, onConf
                     </span>
                   </div>
                   <div className="flex gap-2">
-                    <Button size="sm" className="text-xs" onClick={() => onConfirm(caption)} disabled={!caption.trim()}>
+                    <Button size="sm" className="text-xs" onClick={() => onConfirm(caption, rounds)} disabled={!caption.trim()}>
                       このキャプションで確定する
                     </Button>
                     <Button variant="outline" size="sm" className="text-xs text-red-600 border-red-200 hover:bg-red-50" onClick={handleReset}>
