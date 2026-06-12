@@ -114,7 +114,8 @@ export default function PaneA({ onPostsLoaded, onAddCompetitorAccount }: Props) 
   const [addedUsernames, setAddedUsernames] = useState<Set<string>>(new Set());
   // Settings
   const [businessOnly, setBusinessOnly] = useState(true);
-  const [hint, setHint] = useState("");
+  const [includeHint, setIncludeHint] = useState("");
+  const [excludeHint, setExcludeHint] = useState("");
 
   useEffect(() => {
     fetch("/api/instagram/posts")
@@ -166,7 +167,7 @@ export default function PaneA({ onPostsLoaded, onAddCompetitorAccount }: Props) 
       const res = await fetch("/api/account/suggest", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ captions, businessOnly, hint }),
+        body: JSON.stringify({ captions, businessOnly, includeHint, excludeHint }),
       });
       const data = await res.json();
       if (data.error) { setSuggestError(data.error); return; }
@@ -251,12 +252,23 @@ export default function PaneA({ onPostsLoaded, onAddCompetitorAccount }: Props) 
                 </label>
 
                 <div className="flex flex-col gap-1">
-                  <span className="text-[11px] text-gray-500">補足ヒント（任意）</span>
+                  <span className="text-[11px] text-gray-500">こういうブランドを参考にして（任意）</span>
                   <input
                     type="text"
-                    value={hint}
-                    onChange={(e) => setHint(e.target.value)}
-                    placeholder="例：韓国コスメ系を中心に"
+                    value={includeHint}
+                    onChange={(e) => setIncludeHint(e.target.value)}
+                    placeholder="例：同規模の日本スキンケアブランド"
+                    className="text-xs border border-gray-200 rounded px-2 py-1.5 w-full focus:outline-none focus:border-gray-400"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <span className="text-[11px] text-gray-500">こういうブランドは除外して（任意）</span>
+                  <input
+                    type="text"
+                    value={excludeHint}
+                    onChange={(e) => setExcludeHint(e.target.value)}
+                    placeholder="例：資生堂・SK-IIのような大手ブランド"
                     className="text-xs border border-gray-200 rounded px-2 py-1.5 w-full focus:outline-none focus:border-gray-400"
                   />
                 </div>

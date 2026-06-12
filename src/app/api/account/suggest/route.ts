@@ -11,7 +11,7 @@ export interface SuggestedAccount {
   postsCount?: number;
 }
 
-async function suggestUsernamesWithClaude(captions: string[], hint: string): Promise<string[]> {
+async function suggestUsernamesWithClaude(captions: string[], includeHint: string, excludeHint: string): Promise<string[]> {
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
   const captionText = captions.slice(0, 30).join("\n---\n");
@@ -22,7 +22,8 @@ async function suggestUsernamesWithClaude(captions: string[], hint: string): Pro
 【投稿キャプション一覧】
 ${captionText}
 
-${hint ? `【補足情報】\n${hint}\n` : ""}
+${includeHint ? `【優先する条件】\n以下の条件のアカウントを優先して提案してください。\n${includeHint}\n` : ""}
+${excludeHint ? `【除外する条件】\n以下の条件のアカウントは提案しないでください。\n${excludeHint}\n` : ""}
 このブランドがベンチマークすべき競合・参考になるInstagramアカウントのユーザー名を10〜15件提案してください。
 実在する日本のブランド・企業アカウントを優先してください。
 
@@ -84,7 +85,7 @@ async function fetchProfiles(usernames: string[], token: string): Promise<Sugges
 }
 
 export async function POST(req: NextRequest) {
-  const { captions, businessOnly = false, hint = "" } = await req.json();
+  const { captions, businessOnly = false, includeHint = "", excludeHint = "" } = await req.json();
 
   if (!process.env.ANTHROPIC_API_KEY) {
     return NextResponse.json({ error: "ANTHROPIC_API_KEY is not set" }, { status: 500 });
@@ -99,7 +100,7 @@ export async function POST(req: NextRequest) {
 
   try {
     // Step 1: Claude suggests account usernames
-    const usernames = await suggestUsernamesWithClaude(captions, hint);
+    const usernames = await suggestUsernamesWithClaude(captions, includeHint, excludeHint);
     if (usernames.length === 0) {
       return NextResponse.json({ accounts: [], usernames: [] });
     }
