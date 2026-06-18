@@ -8,7 +8,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "OPENAI_API_KEY is not set" }, { status: 500 });
   }
 
-  const { caption, imageFormat, regulation, imageDirection, referenceImageUrls } = await req.json();
+  const { caption, imageFormat, regulation, imageDirection, referenceImageUrls, productDescription, productImageUrls } = await req.json();
 
   const count = imageFormat === "carousel" ? 3 : 1;
 
@@ -82,14 +82,65 @@ ${regulation ? `Brand context: ${regulation}` : ""}`;
       }
     }
 
-    // Step 2: Generate the main visual prompt using style analysis
-    const promptInstructionWithStyle = styleAnalysis
-      ? `${promptInstruction}\n\nVisual style reference from brand's own posts: ${styleAnalysis}`
-      : promptInstruction;
+    // Step 2: Analyze product images via Claude Vision if provided
+    let productVisualDescription = "";
+    const validProductUrls: string[] = Array.isArray(productImageUrls)
+      ? productImageUrls.filter((u: string) => typeof u === "string" && u.startsWith("http"))
+      : [];
+
+    if (validProductUrls.length > 0) {
+      const productImgContents = await Promise.all(
+        validProductUrls.slice(0, 3).map(async (url: string) => {
+          try {
+            const imgRes = await fetch(url);
+            if (!imgRes.ok) return null;
+            const buffer = await imgRes.arrayBuffer();
+            const b64 = Buffer.from(buffer).toString("base64");
+            const contentType = imgRes.headers.get("content-type") ?? "image/jpeg";
+            return {
+              type: "image" as const,
+              source: { type: "base64" as const, media_type: contentType as "image/jpeg" | "image/png" | "image/webp", data: b64 },
+            };
+          } catch {
+            return null;
+          }
+        })
+      );
+      const validProductImgContents = productImgContents.filter(Boolean);
+      if (validProductImgContents.length > 0) {
+        const prodRes = await claude.messages.create({
+          model: "claude-haiku-4-5",
+          max_tokens: 150,
+          messages: [{
+            role: "user",
+            content: [
+              ...validProductImgContents,
+              {
+                type: "text",
+                text: "Describe this skincare product's physical appearance in 2 sentences in English: bottle shape, color, size, label/logo design. Be precise and visual. Output description only.",
+              },
+            ] as Parameters<typeof claude.messages.create>[0]["messages"][0]["content"],
+          }],
+        });
+        productVisualDescription = (prodRes.content[0] as { type: string; text: string }).text.trim();
+      }
+    }
+
+    // Step 3: Build the final prompt instruction combining all context
+    const productContext = [
+      productDescription ? `Product description: ${productDescription}` : "",
+      productVisualDescription ? `Product appearance (from uploaded photos): ${productVisualDescription}` : "",
+    ].filter(Boolean).join("\n");
+
+    const promptInstructionWithStyle = [
+      promptInstruction,
+      styleAnalysis ? `Visual style reference from brand's own posts: ${styleAnalysis}` : "",
+      productContext,
+    ].filter(Boolean).join("\n\n");
 
     const promptRes = await claude.messages.create({
       model: "claude-haiku-4-5",
-      max_tokens: 250,
+      max_tokens: 300,
       messages: [{ role: "user", content: promptInstructionWithStyle }],
     });
     const visualPrompt = (promptRes.content[0] as { type: string; text: string }).text.trim();

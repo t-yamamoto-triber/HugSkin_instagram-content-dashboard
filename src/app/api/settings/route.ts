@@ -22,17 +22,21 @@ export async function GET() {
   return NextResponse.json({
     regulation: data?.regulation ?? "",
     imageDirection: data?.image_direction ?? "",
+    productDescription: data?.product_description ?? "",
+    productImageUrls: data?.product_image_urls ?? [],
   });
 }
 
 export async function PUT(req: NextRequest) {
   const sb = getClient();
-  const { regulation, imageDirection, updatedBy } = await req.json();
+  const { regulation, imageDirection, productDescription, productImageUrls, updatedBy } = await req.json();
 
   const { error } = await sb.from("brand_settings").upsert({
     id: 1,
     regulation: regulation ?? "",
     image_direction: imageDirection ?? "",
+    product_description: productDescription ?? "",
+    product_image_urls: productImageUrls ?? [],
     updated_by: updatedBy ?? null,
     updated_at: new Date().toISOString(),
   });

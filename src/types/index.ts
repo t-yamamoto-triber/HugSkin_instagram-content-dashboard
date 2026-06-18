@@ -43,6 +43,8 @@ export interface BrandSettings {
   regulation: string;
   imageDirection: string;
   competitorAccounts: CompetitorAccount[];
+  productDescription: string;
+  productImageUrls: string[];
 }
 
 export interface CaptionProposal {

@@ -39,6 +39,8 @@ export default function PaneD({ confirmedCaption, imageFormat, onImageFormatChan
           regulation: brandSettings.regulation,
           imageDirection: brandSettings.imageDirection ?? "",
           referenceImageUrls,
+          productDescription: brandSettings.productDescription ?? "",
+          productImageUrls: brandSettings.productImageUrls ?? [],
         }),
       });
       const data = await res.json();

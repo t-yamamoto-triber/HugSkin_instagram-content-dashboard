@@ -30,6 +30,8 @@ export default function Dashboard() {
     regulation: "",
     imageDirection: "",
     competitorAccounts: [],
+    productDescription: "",
+    productImageUrls: [],
   });
 
   // Load user, brand settings and competitor accounts from Supabase on mount
@@ -49,6 +51,8 @@ export default function Dashboard() {
             ...prev,
             regulation: data.regulation ?? "",
             imageDirection: data.imageDirection ?? "",
+            productDescription: data.productDescription ?? "",
+            productImageUrls: data.productImageUrls ?? [],
           }));
         }
       })

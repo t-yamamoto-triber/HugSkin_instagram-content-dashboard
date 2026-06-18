@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { BrandSettings } from "@/types";
 
 interface Props {
@@ -27,16 +27,52 @@ export default function SettingsModal({ open, onClose, settings, onSave, userEma
   const [imageDirection, setImageDirection] = useState(settings.imageDirection ?? "");
   const [accounts, setAccounts] = useState(settings.competitorAccounts);
   const [newUsername, setNewUsername] = useState("");
+  const [productDescription, setProductDescription] = useState(settings.productDescription ?? "");
+  const [productImageUrls, setProductImageUrls] = useState<string[]>(settings.productImageUrls ?? []);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setRegulation(settings.regulation);
     setImageDirection(settings.imageDirection ?? "");
     setAccounts(settings.competitorAccounts);
+    setProductDescription(settings.productDescription ?? "");
+    setProductImageUrls(settings.productImageUrls ?? []);
   }, [settings]);
 
   const handleSave = () => {
-    onSave({ ...settings, regulation, imageDirection, competitorAccounts: accounts });
+    onSave({ ...settings, regulation, imageDirection, competitorAccounts: accounts, productDescription, productImageUrls });
     onClose();
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingImage(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/product-images", { method: "POST", body: formData });
+      const data = await res.json();
+      if (data.url) setProductImageUrls(prev => [...prev, data.url]);
+    } catch {
+      // silent fail
+    } finally {
+      setUploadingImage(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const handleImageRemove = async (url: string) => {
+    const filename = url.split("/").pop();
+    setProductImageUrls(prev => prev.filter(u => u !== url));
+    if (filename) {
+      await fetch("/api/product-images", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filename }),
+      });
+    }
   };
 
   const addAccount = () => {
@@ -51,7 +87,7 @@ export default function SettingsModal({ open, onClose, settings, onSave, userEma
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>設定</DialogTitle>
         </DialogHeader>
@@ -89,6 +125,63 @@ export default function SettingsModal({ open, onClose, settings, onSave, userEma
             <p className="text-xs text-gray-400">
               Pane Dの画像生成プロンプトに自動反映されます。
             </p>
+          </div>
+
+          {/* Product info */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-gray-700">商品情報（画像生成に反映）</label>
+
+            {/* Product description text */}
+            <Textarea
+              value={productDescription}
+              onChange={(e) => setProductDescription(e.target.value)}
+              placeholder={`例：\n白いエアレスポンプボトル（縦長・約30ml）。キャップはマットホワイト。\nロゴ「HUGSKIN」が正面に大文字で刻印されている。\n洗顔後に顔全体に1〜2プッシュして馴染ませるだけ。洗面台に立てて置くことが多い。`}
+              rows={4}
+              className="text-sm"
+            />
+            <p className="text-xs text-gray-400">ボトルの形状・色・使い方などを記述してください。</p>
+
+            {/* Product image upload */}
+            <div className="flex flex-col gap-2 mt-1">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-600">商品画像（最大5枚）</span>
+                {productImageUrls.length < 5 && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadingImage}
+                  >
+                    {uploadingImage ? "アップロード中…" : "画像を追加"}
+                  </Button>
+                )}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleImageUpload}
+                />
+              </div>
+              {productImageUrls.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {productImageUrls.map((url, i) => (
+                    <div key={i} className="relative group w-16 h-16">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={url} alt="" className="w-16 h-16 object-cover rounded-md border border-gray-200" />
+                      <button
+                        onClick={() => handleImageRemove(url)}
+                        className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-500 text-white rounded-full text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <p className="text-xs text-gray-400">商品写真をアップロードするとAIが形状・色を把握して画像生成に反映します。</p>
+            </div>
           </div>
 
           {/* Competitor accounts */}
