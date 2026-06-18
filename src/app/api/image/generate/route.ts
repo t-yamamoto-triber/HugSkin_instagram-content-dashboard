@@ -8,7 +8,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "OPENAI_API_KEY is not set" }, { status: 500 });
   }
 
-  const { caption, imageFormat, regulation, imageDirection } = await req.json();
+  const { caption, imageFormat, regulation, imageDirection, referenceImageUrls } = await req.json();
 
   const count = imageFormat === "carousel" ? 3 : 1;
 
@@ -33,14 +33,64 @@ ${imageDirection ? `Visual direction: ${imageDirection}` : ""}
 ${regulation ? `Brand context: ${regulation}` : ""}`;
 
   try {
-    // Use Claude to generate a detailed visual prompt, then pass to gpt-image-1
     const Anthropic = (await import("@anthropic-ai/sdk")).default;
     const claude = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+    // Step 1: If reference images are provided, analyze their visual style via Claude Vision
+    let styleAnalysis = "";
+    const validRefUrls: string[] = Array.isArray(referenceImageUrls)
+      ? referenceImageUrls.filter((u: string) => typeof u === "string" && u.startsWith("http"))
+      : [];
+
+    if (validRefUrls.length > 0) {
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+      const imageContents = await Promise.all(
+        validRefUrls.map(async (url: string) => {
+          try {
+            const proxyRes = await fetch(`${baseUrl}/api/proxy/image?url=${encodeURIComponent(url)}`);
+            if (!proxyRes.ok) return null;
+            const buffer = await proxyRes.arrayBuffer();
+            const b64 = Buffer.from(buffer).toString("base64");
+            const contentType = proxyRes.headers.get("content-type") ?? "image/jpeg";
+            return {
+              type: "image" as const,
+              source: { type: "base64" as const, media_type: contentType as "image/jpeg" | "image/png" | "image/webp", data: b64 },
+            };
+          } catch {
+            return null;
+          }
+        })
+      );
+
+      const validImageContents = imageContents.filter(Boolean);
+      if (validImageContents.length > 0) {
+        const styleRes = await claude.messages.create({
+          model: "claude-haiku-4-5",
+          max_tokens: 200,
+          messages: [{
+            role: "user",
+            content: [
+              ...validImageContents,
+              {
+                type: "text",
+                text: "These are recent Instagram posts from a Japanese skincare brand. In 2-3 sentences in English, describe the consistent visual style: color palette, lighting, background setting, mood, and photography style. Be specific and concise. Output style description only.",
+              },
+            ] as Parameters<typeof claude.messages.create>[0]["messages"][0]["content"],
+          }],
+        });
+        styleAnalysis = (styleRes.content[0] as { type: string; text: string }).text.trim();
+      }
+    }
+
+    // Step 2: Generate the main visual prompt using style analysis
+    const promptInstructionWithStyle = styleAnalysis
+      ? `${promptInstruction}\n\nVisual style reference from brand's own posts: ${styleAnalysis}`
+      : promptInstruction;
 
     const promptRes = await claude.messages.create({
       model: "claude-haiku-4-5",
       max_tokens: 250,
-      messages: [{ role: "user", content: promptInstruction }],
+      messages: [{ role: "user", content: promptInstructionWithStyle }],
     });
     const visualPrompt = (promptRes.content[0] as { type: string; text: string }).text.trim();
 

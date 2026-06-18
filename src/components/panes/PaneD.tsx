@@ -11,9 +11,10 @@ interface Props {
   onImageFormatChange: (format: ImageFormat) => void;
   brandSettings: BrandSettings;
   onImagesGenerated?: (urls: string[]) => void;
+  referenceImageUrls?: string[];
 }
 
-export default function PaneD({ confirmedCaption, imageFormat, onImageFormatChange, brandSettings, onImagesGenerated }: Props) {
+export default function PaneD({ confirmedCaption, imageFormat, onImageFormatChange, brandSettings, onImagesGenerated, referenceImageUrls = [] }: Props) {
   const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [visualPrompt, setVisualPrompt] = useState<string>("");
   const [loading, setLoading] = useState(false);
@@ -37,6 +38,7 @@ export default function PaneD({ confirmedCaption, imageFormat, onImageFormatChan
           imageFormat,
           regulation: brandSettings.regulation,
           imageDirection: brandSettings.imageDirection ?? "",
+          referenceImageUrls,
         }),
       });
       const data = await res.json();
@@ -96,6 +98,24 @@ export default function PaneD({ confirmedCaption, imageFormat, onImageFormatChan
                   </button>
                 ))}
               </div>
+
+              {/* Reference images indicator */}
+              {referenceImageUrls.length > 0 && (
+                <div className="flex items-center gap-2 px-2.5 py-1.5 bg-blue-50 border border-blue-100 rounded-md">
+                  <div className="flex -space-x-1.5">
+                    {referenceImageUrls.map((url, i) => (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        key={i}
+                        src={`/api/proxy/image?url=${encodeURIComponent(url)}`}
+                        alt=""
+                        className="w-6 h-6 rounded-full object-cover border border-white"
+                      />
+                    ))}
+                  </div>
+                  <span className="text-[11px] text-blue-600">自社直近{referenceImageUrls.length}枚のトーンを参照中</span>
+                </div>
+              )}
 
               {/* Image direction indicator */}
               {brandSettings.imageDirection && (

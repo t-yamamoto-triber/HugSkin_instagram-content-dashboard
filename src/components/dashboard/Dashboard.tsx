@@ -222,6 +222,12 @@ export default function Dashboard() {
             onImageFormatChange={setImageFormat}
             brandSettings={brandSettings}
             onImagesGenerated={setGeneratedImageUrls}
+            referenceImageUrls={
+              ownPosts
+                .slice(0, 4)
+                .map(p => p.mediaUrl ?? p.thumbnailUrl ?? "")
+                .filter(Boolean)
+            }
           />
         </div>
       </div>
