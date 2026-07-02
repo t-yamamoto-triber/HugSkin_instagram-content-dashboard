@@ -31,6 +31,10 @@ export default function SettingsModal({ open, onClose, settings, onSave, userEma
   const [productImageUrls, setProductImageUrls] = useState<string[]>(settings.productImageUrls ?? []);
   const [uploadingImage, setUploadingImage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [githubDocUrl, setGithubDocUrl] = useState(settings.githubDocUrl ?? "");
+  const [githubToken, setGithubToken] = useState(settings.githubToken ?? "");
+  const [syncing, setSyncing] = useState(false);
+  const [syncMsg, setSyncMsg] = useState<{ text: string; ok: boolean } | null>(null);
 
   useEffect(() => {
     setRegulation(settings.regulation);
@@ -38,11 +42,38 @@ export default function SettingsModal({ open, onClose, settings, onSave, userEma
     setAccounts(settings.competitorAccounts);
     setProductDescription(settings.productDescription ?? "");
     setProductImageUrls(settings.productImageUrls ?? []);
+    setGithubDocUrl(settings.githubDocUrl ?? "");
+    setGithubToken(settings.githubToken ?? "");
   }, [settings]);
 
   const handleSave = () => {
-    onSave({ ...settings, regulation, imageDirection, competitorAccounts: accounts, productDescription, productImageUrls });
+    onSave({ ...settings, regulation, imageDirection, competitorAccounts: accounts, productDescription, productImageUrls, githubDocUrl, githubToken });
     onClose();
+  };
+
+  const handleGithubSync = async () => {
+    if (!githubDocUrl) return;
+    setSyncing(true);
+    setSyncMsg(null);
+    try {
+      const res = await fetch("/api/github-doc", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: githubDocUrl, token: githubToken || undefined }),
+      });
+      const data = await res.json();
+      if (data.error) {
+        setSyncMsg({ text: data.error, ok: false });
+      } else {
+        setRegulation(data.content);
+        setSyncMsg({ text: "同期しました。ブランドレギュレーション欄に反映されました。", ok: true });
+      }
+    } catch {
+      setSyncMsg({ text: "取得に失敗しました。", ok: false });
+    } finally {
+      setSyncing(false);
+      setTimeout(() => setSyncMsg(null), 4000);
+    }
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -210,21 +241,42 @@ export default function SettingsModal({ open, onClose, settings, onSave, userEma
             <p className="text-xs text-gray-400">最大10アカウント。PaneBで投稿を取得できます。</p>
           </div>
 
-          {/* Future: Google Doc URL */}
+          {/* GitHub MD sync */}
           <div className="flex flex-col gap-1.5">
-            <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-gray-700">
-                外部ドキュメント読み込み
-              </label>
-              <Badge variant="secondary" className="text-xs">将来対応予定</Badge>
+            <label className="text-sm font-medium text-gray-700">
+              GitHubからMDファイルを同期
+            </label>
+            <div className="flex gap-2">
+              <Input
+                value={githubDocUrl}
+                onChange={(e) => setGithubDocUrl(e.target.value)}
+                placeholder="https://github.com/owner/repo/blob/main/regulation.md"
+                className="text-sm h-8 flex-1"
+              />
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 text-xs shrink-0"
+                onClick={handleGithubSync}
+                disabled={syncing || !githubDocUrl}
+              >
+                {syncing ? "取得中…" : "同期"}
+              </Button>
             </div>
             <Input
-              disabled
-              placeholder="Google Doc / Spreadsheet の URL を貼る"
-              className="text-sm bg-gray-50"
+              value={githubToken}
+              onChange={(e) => setGithubToken(e.target.value)}
+              placeholder="GitHub Personal Access Token（プライベートリポジトリの場合のみ）"
+              type="password"
+              className="text-sm h-8"
             />
+            {syncMsg && (
+              <p className={`text-xs px-2 py-1 rounded ${syncMsg.ok ? "text-green-700 bg-green-50" : "text-red-600 bg-red-50"}`}>
+                {syncMsg.text}
+              </p>
+            )}
             <p className="text-xs text-gray-400">
-              ブランドガイドラインのドキュメントURLを読み込んで自動反映できるようになります。
+              「同期」を押すとMDの内容がブランドレギュレーション欄に反映されます。パブリックリポジトリはTokenなしでOK。
             </p>
           </div>
         </div>

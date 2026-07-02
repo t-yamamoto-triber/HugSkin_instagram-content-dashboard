@@ -24,12 +24,13 @@ export async function GET() {
     imageDirection: data?.image_direction ?? "",
     productDescription: data?.product_description ?? "",
     productImageUrls: data?.product_image_urls ?? [],
+    githubDocUrl: data?.github_doc_url ?? "",
   });
 }
 
 export async function PUT(req: NextRequest) {
   const sb = getClient();
-  const { regulation, imageDirection, productDescription, productImageUrls, updatedBy } = await req.json();
+  const { regulation, imageDirection, productDescription, productImageUrls, githubDocUrl, updatedBy } = await req.json();
 
   const { error } = await sb.from("brand_settings").upsert({
     id: 1,
@@ -37,6 +38,7 @@ export async function PUT(req: NextRequest) {
     image_direction: imageDirection ?? "",
     product_description: productDescription ?? "",
     product_image_urls: productImageUrls ?? [],
+    github_doc_url: githubDocUrl ?? "",
     updated_by: updatedBy ?? null,
     updated_at: new Date().toISOString(),
   });

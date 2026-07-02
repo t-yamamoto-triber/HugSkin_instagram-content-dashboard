@@ -32,6 +32,8 @@ export default function Dashboard() {
     competitorAccounts: [],
     productDescription: "",
     productImageUrls: [],
+    githubDocUrl: "",
+    githubToken: "",
   });
 
   // Load user, brand settings and competitor accounts from Supabase on mount
@@ -53,6 +55,7 @@ export default function Dashboard() {
             imageDirection: data.imageDirection ?? "",
             productDescription: data.productDescription ?? "",
             productImageUrls: data.productImageUrls ?? [],
+            githubDocUrl: data.githubDocUrl ?? "",
           }));
         }
       })

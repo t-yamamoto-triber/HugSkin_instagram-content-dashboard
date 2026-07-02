@@ -45,6 +45,8 @@ export interface BrandSettings {
   competitorAccounts: CompetitorAccount[];
   productDescription: string;
   productImageUrls: string[];
+  githubDocUrl: string;
+  githubToken: string;
 }
 
 export interface CaptionProposal {
