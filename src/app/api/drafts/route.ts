@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { requireAuth } from "@/lib/api-auth";
 
 function getClient() {
   return createClient(
@@ -10,6 +11,8 @@ function getClient() {
 
 // GET: fetch all drafts
 export async function GET() {
+  const authError = await requireAuth();
+  if (authError) return authError;
   const sb = getClient();
   const { data, error } = await sb
     .from("drafts")
@@ -22,6 +25,8 @@ export async function GET() {
 
 // POST: create or update draft
 export async function POST(req: NextRequest) {
+  const authError = await requireAuth();
+  if (authError) return authError;
   const sb = getClient();
   const body = await req.json();
   const { id, caption, imageUrls, imageFormat, theme, proposalRounds, updatedBy } = body;
@@ -64,6 +69,8 @@ export async function POST(req: NextRequest) {
 
 // DELETE: remove a draft
 export async function DELETE(req: NextRequest) {
+  const authError = await requireAuth();
+  if (authError) return authError;
   const sb = getClient();
   const { id } = await req.json();
   const { error } = await sb.from("drafts").delete().eq("id", id);

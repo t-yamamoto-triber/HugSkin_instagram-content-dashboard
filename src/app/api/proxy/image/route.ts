@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAuth } from "@/lib/api-auth";
 
 export async function GET(req: NextRequest) {
+  const authError = await requireAuth();
+  if (authError) return authError;
   const url = req.nextUrl.searchParams.get("url");
   if (!url) return new NextResponse("url param required", { status: 400 });
 

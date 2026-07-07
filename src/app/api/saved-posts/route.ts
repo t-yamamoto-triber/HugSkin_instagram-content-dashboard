@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { requireAuth } from "@/lib/api-auth";
 
 function getClient() {
   return createClient(
@@ -9,6 +10,8 @@ function getClient() {
 }
 
 export async function GET() {
+  const authError = await requireAuth();
+  if (authError) return authError;
   const sb = getClient();
   const { data, error } = await sb
     .from("saved_posts")
@@ -20,6 +23,8 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const authError = await requireAuth();
+  if (authError) return authError;
   const sb = getClient();
   const { postId, username, postUrl, thumbnailUrl, caption, savedBy } = await req.json();
 
@@ -37,6 +42,8 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  const authError = await requireAuth();
+  if (authError) return authError;
   const sb = getClient();
   const { postId } = await req.json();
   const { error } = await sb.from("saved_posts").delete().eq("post_id", postId);

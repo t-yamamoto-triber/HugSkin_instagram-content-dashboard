@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
+import { requireAuth } from "@/lib/api-auth";
 
 const APIFY_TOKEN = process.env.APIFY_API_TOKEN;
 const ACTOR_ID = "apify~instagram-profile-scraper";
 
 export async function POST(req: Request) {
+  const authError = await requireAuth();
+  if (authError) return authError;
   if (!APIFY_TOKEN) {
     return NextResponse.json({ error: "APIFY_API_TOKEN is not set" }, { status: 500 });
   }

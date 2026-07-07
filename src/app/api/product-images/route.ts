@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { requireAuth } from "@/lib/api-auth";
 
 const BUCKET = "product-images";
 
@@ -11,6 +12,8 @@ function getClient() {
 }
 
 export async function POST(req: NextRequest) {
+  const authError = await requireAuth();
+  if (authError) return authError;
   const sb = getClient();
   const formData = await req.formData();
   const file = formData.get("file") as File | null;
@@ -31,6 +34,8 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  const authError = await requireAuth();
+  if (authError) return authError;
   const sb = getClient();
   const { filename } = await req.json();
   if (!filename) return NextResponse.json({ error: "No filename" }, { status: 400 });

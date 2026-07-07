@@ -85,7 +85,7 @@ INSTAGRAM_ACCESS_TOKEN=         # Instagram Graph API 長期トークン
 ANTHROPIC_API_KEY=              # Claude API
 OPENAI_API_KEY=                 # gpt-image-1
 APIFY_API_TOKEN=                # 競合投稿スクレイピング
-NEXT_PUBLIC_APP_URL=            # 本番URL（画像プロキシ用）
+NEXT_PUBLIC_APP_URL=            # 本番URL（現在コード内では未使用）
 ```
 
 ---
@@ -126,12 +126,13 @@ NEXT_PUBLIC_APP_URL=            # 本番URL（画像プロキシ用）
 
 ## 主要な開発上の注意点
 
-- **Instagram CDN画像のCORS**: ブラウザからは直接取得不可。`/api/proxy/image?url=...` を経由する
+- **APIルートの認証**: 全APIルートは `src/lib/api-auth.ts` の `requireAuth()` でSupabaseセッションを検証（未認証は401）。middlewareでも `/api/` を401でブロック（二重防御）。新しいAPIルートを追加したら必ずハンドラ先頭に `requireAuth()` を入れること
+- **Instagram CDN画像のCORS**: ブラウザからは直接取得不可。`/api/proxy/image?url=...` を経由する（要ログインcookie）。サーバー側（APIルート内）はCORS制約がないためプロキシを使わずCDNから直接fetchする
 - **Supabase RLS**: 全テーブルに `allow all` ポリシーが必要（無いとAnonキーでアクセス不可）
 - **Instagram アクセストークン**: 60日で失効。Meta Developer でページトークンを再取得が必要
 - **gpt-image-1**: `response_format` パラメータは非対応。`quality: "high"` で高品質生成
 - **ScrollArea**: shadcn/uiの ScrollArea は挙動が不安定なため `div.overflow-y-auto` を使用
-- **`NEXT_PUBLIC_APP_URL`**: Vercelの環境変数に本番URLを設定しないと画像プロキシが動かない
+- **`NEXT_PUBLIC_APP_URL`**: 現在コード内では未使用（旧: サーバー側の画像プロキシ用）。環境変数としては残置
 
 ---
 

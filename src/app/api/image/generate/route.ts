@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
+import { requireAuth } from "@/lib/api-auth";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export async function POST(req: Request) {
+  const authError = await requireAuth();
+  if (authError) return authError;
   if (!process.env.OPENAI_API_KEY) {
     return NextResponse.json({ error: "OPENAI_API_KEY is not set" }, { status: 500 });
   }
@@ -43,15 +46,21 @@ ${regulation ? `Brand context: ${regulation}` : ""}`;
       : [];
 
     if (validRefUrls.length > 0) {
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+      // サーバー側はCORS制約がないためCDNから直接取得する
+      // （プロキシ経由だと認証cookieが無く401になる）
       const imageContents = await Promise.all(
         validRefUrls.map(async (url: string) => {
           try {
-            const proxyRes = await fetch(`${baseUrl}/api/proxy/image?url=${encodeURIComponent(url)}`);
-            if (!proxyRes.ok) return null;
-            const buffer = await proxyRes.arrayBuffer();
+            const imgRes = await fetch(url, {
+              headers: {
+                "User-Agent": "Mozilla/5.0 (compatible; bot/1.0)",
+                "Accept": "image/*",
+              },
+            });
+            if (!imgRes.ok) return null;
+            const buffer = await imgRes.arrayBuffer();
             const b64 = Buffer.from(buffer).toString("base64");
-            const contentType = proxyRes.headers.get("content-type") ?? "image/jpeg";
+            const contentType = imgRes.headers.get("content-type") ?? "image/jpeg";
             return {
               type: "image" as const,
               source: { type: "base64" as const, media_type: contentType as "image/jpeg" | "image/png" | "image/webp", data: b64 },
