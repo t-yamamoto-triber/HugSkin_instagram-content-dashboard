@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import type { ImageFormat, BrandSettings } from "@/types";
 
 interface Props {
@@ -14,22 +13,60 @@ interface Props {
   referenceImageUrls?: string[];
 }
 
+interface AnalysisCache {
+  key: string;
+  styleAnalysis: string;
+  productVisual: string;
+}
+
+type Stage = "idle" | "analyzing" | "generating";
+type Engine = "openai" | "gemini";
+
 export default function PaneD({ confirmedCaption, imageFormat, onImageFormatChange, brandSettings, onImagesGenerated, referenceImageUrls = [] }: Props) {
   const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [visualPrompt, setVisualPrompt] = useState<string>("");
-  const [loading, setLoading] = useState(false);
+  const [stage, setStage] = useState<Stage>("idle");
   const [error, setError] = useState<string | null>(null);
+  const [analysisCache, setAnalysisCache] = useState<AnalysisCache | null>(null);
+  const [engine, setEngine] = useState<Engine>("openai");
 
   const isLocked = confirmedCaption === null;
+  const loading = stage !== "idle";
 
   const handleGenerate = async () => {
     if (!confirmedCaption) return;
-    setLoading(true);
     setError(null);
     setImageUrls([]);
     setVisualPrompt("");
 
+    const productImageUrls = brandSettings.productImageUrls ?? [];
+    const cacheKey = JSON.stringify([referenceImageUrls, productImageUrls]);
+
     try {
+      // Step 1: visual analysis — OpenAI path only (Gemini receives the actual
+      // reference images, so no text summarization is needed).
+      // Skipped when inputs haven't changed since the last run.
+      let analysis = analysisCache?.key === cacheKey ? analysisCache : null;
+      if (engine === "openai" && !analysis && (referenceImageUrls.length > 0 || productImageUrls.length > 0)) {
+        setStage("analyzing");
+        const res = await fetch("/api/image/analyze", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ referenceImageUrls, productImageUrls }),
+        });
+        const data = await res.json();
+        if (!data.error) {
+          analysis = {
+            key: cacheKey,
+            styleAnalysis: data.styleAnalysis ?? "",
+            productVisual: data.productVisual ?? "",
+          };
+          setAnalysisCache(analysis);
+        }
+      }
+
+      // Step 2: prompt building + image generation
+      setStage("generating");
       const res = await fetch("/api/image/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -40,7 +77,11 @@ export default function PaneD({ confirmedCaption, imageFormat, onImageFormatChan
           imageDirection: brandSettings.imageDirection ?? "",
           referenceImageUrls,
           productDescription: brandSettings.productDescription ?? "",
-          productImageUrls: brandSettings.productImageUrls ?? [],
+          productImageUrls,
+          engine,
+          ...(engine === "openai" && analysis
+            ? { styleAnalysis: analysis.styleAnalysis, productVisual: analysis.productVisual }
+            : {}),
         }),
       });
       const data = await res.json();
@@ -51,7 +92,22 @@ export default function PaneD({ confirmedCaption, imageFormat, onImageFormatChan
     } catch {
       setError("画像生成に失敗しました。もう一度試してください。");
     } finally {
-      setLoading(false);
+      setStage("idle");
+    }
+  };
+
+  const handleDownload = async (url: string, index: number) => {
+    try {
+      const res = await fetch(url);
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = objectUrl;
+      a.download = `hugskin-image-${index + 1}.png`;
+      a.click();
+      URL.revokeObjectURL(objectUrl);
+    } catch {
+      window.open(url, "_blank");
     }
   };
 
@@ -83,6 +139,25 @@ export default function PaneD({ confirmedCaption, imageFormat, onImageFormatChan
             </div>
           ) : (
             <>
+              {/* Engine selector */}
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500">生成AI</span>
+                {(["openai", "gemini"] as Engine[]).map((e) => (
+                  <button
+                    key={e}
+                    onClick={() => setEngine(e)}
+                    disabled={loading}
+                    className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${
+                      engine === e
+                        ? "bg-gray-900 text-white border-gray-900"
+                        : "bg-white text-gray-500 border-gray-200 hover:border-gray-400"
+                    }`}
+                  >
+                    {e === "openai" ? "OpenAI" : "Gemini（参照画像）"}
+                  </button>
+                ))}
+              </div>
+
               {/* Format selector */}
               <div className="flex items-center gap-2">
                 <span className="text-xs text-gray-500">投稿形式</span>
@@ -115,7 +190,10 @@ export default function PaneD({ confirmedCaption, imageFormat, onImageFormatChan
                       />
                     ))}
                   </div>
-                  <span className="text-[11px] text-blue-600">自社直近{referenceImageUrls.length}枚のトーンを参照中</span>
+                  <span className="text-[11px] text-blue-600">
+                    自社直近{referenceImageUrls.length}枚のトーンを参照中
+                    {engine === "gemini" ? "（画像のまま入力）" : analysisCache ? " ✓分析済み" : ""}
+                  </span>
                 </div>
               )}
 
@@ -140,12 +218,23 @@ export default function PaneD({ confirmedCaption, imageFormat, onImageFormatChan
                   : "キャプションをもとに画像を生成"}
               </Button>
 
-              {/* Loading */}
+              {/* Loading with stage progress */}
               {loading && (
-                <div className="flex items-center gap-2 py-6 justify-center">
-                  <div className="w-4 h-4 border-2 border-gray-300 border-t-gray-700 rounded-full animate-spin" />
-                  <span className="text-xs text-gray-500">
-                    DALL-E 3が生成しています…{imageFormat === "carousel" ? "（3枚で30〜60秒かかります）" : "（15〜30秒かかります）"}
+                <div className="flex flex-col gap-1.5 py-4 items-center">
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-gray-300 border-t-gray-700 rounded-full animate-spin" />
+                    <span className="text-xs text-gray-600">
+                      {stage === "analyzing"
+                        ? "1/2　投稿スタイル・商品画像を分析中…"
+                        : engine === "gemini"
+                          ? "プロンプト作成・画像生成中…（参照画像を直接入力）"
+                          : "2/2　プロンプト作成・画像生成中…"}
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-gray-400">
+                    {stage === "analyzing"
+                      ? "初回のみ実行されます（10秒前後）"
+                      : imageFormat === "carousel" ? "3枚で30〜60秒かかります" : "15〜30秒かかります"}
                   </span>
                 </div>
               )}
@@ -159,7 +248,7 @@ export default function PaneD({ confirmedCaption, imageFormat, onImageFormatChan
               {visualPrompt && !loading && (
                 <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md">
                   <p className="text-[11px] text-gray-400 mb-0.5">生成に使ったビジュアルプロンプト</p>
-                  <p className="text-xs text-gray-600 italic">{visualPrompt}</p>
+                  <p className="text-xs text-gray-600 italic whitespace-pre-wrap">{visualPrompt}</p>
                 </div>
               )}
 
@@ -174,24 +263,24 @@ export default function PaneD({ confirmedCaption, imageFormat, onImageFormatChan
                         alt={`生成画像 ${i + 1}`}
                         className="w-full rounded-md border border-gray-200 object-cover"
                       />
-                      <a
-                        href={url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-md"
-                      >
-                        <span className="text-white text-xs bg-black/60 px-2 py-1 rounded">開く</span>
-                      </a>
+                      <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-md">
+                        <a
+                          href={url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-white text-xs bg-black/60 px-2 py-1 rounded hover:bg-black/80"
+                        >
+                          開く
+                        </a>
+                        <button
+                          onClick={() => handleDownload(url, i)}
+                          className="text-white text-xs bg-black/60 px-2 py-1 rounded hover:bg-black/80"
+                        >
+                          保存
+                        </button>
+                      </div>
                     </div>
                   ))}
-                </div>
-              )}
-
-              {imageUrls.length > 0 && !loading && (
-                <div className="px-3 py-2 bg-amber-50 border border-amber-200 rounded-md">
-                  <p className="text-xs text-amber-700">
-                    ⚠️ このURLは約1時間で失効します。保存が必要な場合は画像を右クリックしてダウンロードしてください。
-                  </p>
                 </div>
               )}
             </>

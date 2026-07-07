@@ -18,7 +18,7 @@ HugSkin（M'stime株式会社）のInstagramコンテンツ制作を支援する
 | UI | Tailwind CSS, shadcn/ui |
 | 認証・DB・Storage | Supabase (Auth / PostgreSQL / Storage) |
 | AI - キャプション生成 | Anthropic Claude (claude-sonnet / haiku) |
-| AI - 画像生成 | OpenAI gpt-image-1 |
+| AI - 画像生成 | OpenAI gpt-image-2（→gpt-image-1フォールバック）/ Gemini 3.1 Flash Image（PaneDで切替、参照画像直入力） |
 | AI - ビジョン分析 | Claude Vision (Haiku) |
 | 競合スクレイピング | Apify (Instagram Profile Scraper) |
 | デプロイ | Vercel |
@@ -36,7 +36,8 @@ src/
 │   └── api/
 │       ├── instagram/posts/      # 自社Instagram投稿取得（Graph API）
 │       ├── caption/generate/     # Claudeでキャプション生成
-│       ├── image/generate/       # Claude Vision + gpt-image-1で画像生成
+│       ├── image/analyze/        # スタイル・商品画像のVision分析（PaneDがキャッシュ）
+│       ├── image/generate/       # Claude Vision + gpt-image-1で画像生成→Storageに永続化
 │       ├── competitor/fetch/     # Apifyで競合Instagram投稿取得
 │       ├── account/suggest/      # Claudeでアカウント候補提案
 │       ├── settings/             # ブランド設定 CRUD（Supabase）
@@ -44,6 +45,7 @@ src/
 │       ├── saved-posts/          # 保存済み競合投稿 CRUD（Supabase）
 │       ├── drafts/               # 下書き CRUD（Supabase）
 │       ├── product-images/       # 商品画像アップロード（Supabase Storage）
+│       ├── github-doc/           # GitHubのMDファイル取得（公開・プライベート両対応）
 │       └── proxy/image/          # Instagram CDN画像のCORSプロキシ
 ├── components/
 │   ├── dashboard/
@@ -67,12 +69,12 @@ src/
 
 | テーブル | 主なカラム | 用途 |
 |---|---|---|
-| `brand_settings` | `id=1`, `regulation`, `image_direction`, `product_description`, `product_image_urls`, `updated_by` | ブランド設定（シングルレコード） |
+| `brand_settings` | `id=1`, `regulation`, `image_direction`, `product_description`, `product_image_urls`, `github_doc_url`, `updated_by` | ブランド設定（シングルレコード） |
 | `competitor_accounts` | `username`, `label`, `added_by` | 競合アカウント一覧 |
 | `saved_posts` | `post_id`, `username`, `caption`, `thumbnail_url`, `post_url`, `saved_at` | 保存済み競合投稿 |
 | `drafts` | `caption`, `image_urls`, `image_format`, `theme`, `proposal_rounds`, `created_by`, `updated_by` | 下書き |
 
-**Storage バケット**: `product-images`（商品画像、パブリック）
+**Storage バケット**: `product-images`（商品画像、パブリック）/ `generated-images`（AI生成画像の永続化先、パブリック）
 
 ---
 
@@ -83,7 +85,8 @@ NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 INSTAGRAM_ACCESS_TOKEN=         # Instagram Graph API 長期トークン
 ANTHROPIC_API_KEY=              # Claude API
-OPENAI_API_KEY=                 # gpt-image-1
+OPENAI_API_KEY=                 # gpt-image-2/1
+GEMINI_API_KEY=                 # Gemini 3.1 Flash Image（画像生成エンジン切替用）
 APIFY_API_TOKEN=                # 競合投稿スクレイピング
 NEXT_PUBLIC_APP_URL=            # 本番URL（画像プロキシ用）
 ```
@@ -121,6 +124,36 @@ NEXT_PUBLIC_APP_URL=            # 本番URL（画像プロキシ用）
 2. 商品アップロード画像（設定、Claude Visionで分析）
 3. 画像テイスト設定
 4. 自社直近4枚のスタイル参照（Claude Visionで分析）
+
+---
+
+## 直近で追加された機能（2026年7月時点）
+
+| 機能 | 概要 |
+|---|---|
+| **GitHub MD 同期** | 設定モーダルにGitHub Raw URLとPATを入力し「Sync」→`/api/github-doc`経由でブランドレギュレーションを自動取得・反映 |
+| **商品画像インプット** | 設定モーダルで商品画像（最大3枚）をSupabase Storageにアップロード。Claude Visionが形状・使い方を分析してPaneDの画像生成プロンプトに反映 |
+| **AIコンテキスト渡し** | PaneBの保存済み投稿にチェックをつけるとPaneCのキャプション生成コンテキストに最大5件含まれる |
+| **アカウント提案** | PaneAの自社投稿をClaudeが分析し、参考になる競合アカウント候補を提案。「include/exclude」フィルタで調整可能 |
+| **日本人モデル指定** | PaneDの画像生成プロンプトに日本人女性（20代後半〜30代）を明示。`quality: "high"` で高品質生成 |
+| **自社トーン参照** | PaneDで直近4枚の自社投稿画像をClaude Visionが分析し、同じトーンで画像生成 |
+| **Supabase Auth** | ログイン必須（`/login`）。`middleware.ts`で未認証リダイレクト |
+
+---
+
+## BrandSettings 型（types/index.ts）
+
+```typescript
+export interface BrandSettings {
+  regulation: string;
+  imageDirection: string;
+  competitorAccounts: CompetitorAccount[];
+  productDescription: string;
+  productImageUrls: string[];
+  githubDocUrl: string;
+  githubToken: string;
+}
+```
 
 ---
 

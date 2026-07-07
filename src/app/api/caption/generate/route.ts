@@ -19,8 +19,13 @@ export async function POST(req: Request) {
 - 本文は自然で読みやすい日本語
 - ハッシュタグは末尾にまとめて、最大30個
 - 合計2200文字以内
-- 各案は「---案N---」で区切る（N=1,2,3）
+- 各案の先頭に必ず「---案N---」の区切り行を置く（N=1,2,3）。この区切り形式は一字一句厳守し、他の区切りや前置きの見出しは使わない
 - ブランドレギュレーションがあれば必ず遵守する
+
+【ブランド固定要件（必ず遵守）】
+- ハッシュタグに #HugSkin #ハグスキン #オールインワン美容液 #ママ美容 の4つを必ず含める
+- 薬機法: 「シミ」「美白」「シワ改善」など効能を保証する表現はNG。「ハリ」「ツヤ」「うるおい」「透明感」はOK
+- トーン: 贅沢で頼れるお守りのような存在として描く。「ズボラ」「手抜き」「コスパ」といった訴求はNG
 
 ${regulation ? `【ブランドレギュレーション】\n${regulation}` : ""}`;
 
@@ -55,7 +60,7 @@ ${regulation ? `【ブランドレギュレーション】\n${regulation}` : ""}
   try {
     const message = await client.messages.create({
       model: "claude-opus-4-5",
-      max_tokens: 2000,
+      max_tokens: 6000,
       messages: [{ role: "user", content: userLines.join("\n\n") }],
       system: systemPrompt,
     });

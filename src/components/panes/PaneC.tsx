@@ -27,6 +27,7 @@ export default function PaneC({ refPost, brandSettings, confirmedCaption, onConf
   const [rounds, setRounds] = useState<Round[]>([]);
   const [viewingRound, setViewingRound] = useState(0);
   const [selectedProposal, setSelectedProposal] = useState<number | null>(null);
+  const [expandedProposals, setExpandedProposals] = useState<Set<number>>(new Set());
   const [caption, setCaption] = useState("");
   const [feedback, setFeedback] = useState("");
   const [loading, setLoading] = useState(false);
@@ -43,6 +44,7 @@ export default function PaneC({ refPost, brandSettings, confirmedCaption, onConf
     setLoading(true);
     setError(null);
     setSelectedProposal(null);
+    setExpandedProposals(new Set());
     setCaption("");
 
     const prevRound = rounds[currentRoundIndex];
@@ -94,6 +96,7 @@ export default function PaneC({ refPost, brandSettings, confirmedCaption, onConf
     setRounds([]);
     setViewingRound(0);
     setSelectedProposal(null);
+    setExpandedProposals(new Set());
     setCaption("");
     setFeedback("");
     setError(null);
@@ -202,7 +205,7 @@ export default function PaneC({ refPost, brandSettings, confirmedCaption, onConf
                       {rounds.map((_, i) => (
                         <button
                           key={i}
-                          onClick={() => { setViewingRound(i); setSelectedProposal(null); }}
+                          onClick={() => { setViewingRound(i); setSelectedProposal(null); setExpandedProposals(new Set()); }}
                           className={`px-2 py-0.5 rounded text-[11px] border transition-colors ${
                             viewingRound === i
                               ? "bg-gray-900 text-white border-gray-900"
@@ -215,17 +218,34 @@ export default function PaneC({ refPost, brandSettings, confirmedCaption, onConf
                     </div>
                   )}
 
-                  <div className="grid grid-cols-3 gap-2">
-                    {displayedProposals.map((text, i) => (
-                      <div key={i} className="border border-gray-200 rounded-md p-2 flex flex-col gap-2 hover:border-gray-400 transition-colors">
-                        <p className="text-[11px] text-gray-500 line-clamp-6 whitespace-pre-wrap leading-relaxed">{text}</p>
-                        {isLatestRound && (
-                          <Button variant="outline" size="sm" className="self-start text-xs h-7" onClick={() => selectProposal(i)}>
-                            選ぶ
-                          </Button>
-                        )}
-                      </div>
-                    ))}
+                  <div className="grid grid-cols-3 gap-2 items-start">
+                    {displayedProposals.map((text, i) => {
+                      const expanded = expandedProposals.has(i);
+                      return (
+                        <div key={i} className="border border-gray-200 rounded-md p-2 flex flex-col gap-2 hover:border-gray-400 transition-colors">
+                          <p className={`text-[11px] text-gray-500 whitespace-pre-wrap leading-relaxed ${expanded ? "" : "line-clamp-6"}`}>{text}</p>
+                          <div className="flex items-center gap-2">
+                            {isLatestRound && (
+                              <Button variant="outline" size="sm" className="text-xs h-7" onClick={() => selectProposal(i)}>
+                                選ぶ
+                              </Button>
+                            )}
+                            <button
+                              className="text-[11px] text-gray-400 hover:text-gray-700"
+                              onClick={() => {
+                                setExpandedProposals(prev => {
+                                  const next = new Set(prev);
+                                  if (next.has(i)) next.delete(i); else next.add(i);
+                                  return next;
+                                });
+                              }}
+                            >
+                              {expanded ? "たたむ" : "全文を読む"}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
 
                   {/* Feedback & regenerate (only on latest round) */}
