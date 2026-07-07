@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAuth } from "@/lib/api-auth";
 
 const FIELDS = "id,caption,media_url,thumbnail_url,timestamp,media_type,permalink";
 
 export async function GET(req: NextRequest) {
+  const authError = await requireAuth();
+  if (authError) return authError;
   const token = process.env.INSTAGRAM_ACCESS_TOKEN;
   const after = req.nextUrl.searchParams.get("after") ?? "";
 

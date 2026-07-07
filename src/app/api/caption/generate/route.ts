@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
+import { requireAuth } from "@/lib/api-auth";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 export async function POST(req: Request) {
+  const authError = await requireAuth();
+  if (authError) return authError;
   const { theme, refPostCaption, regulation, feedback, previousProposals, round, ownPostCaptions, selectedSavedPostCaptions } =
     await req.json();
 

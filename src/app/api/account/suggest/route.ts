@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
+import { requireAuth } from "@/lib/api-auth";
 
 export interface SuggestedAccount {
   username: string;
@@ -85,6 +86,8 @@ async function fetchProfiles(usernames: string[], token: string): Promise<Sugges
 }
 
 export async function POST(req: NextRequest) {
+  const authError = await requireAuth();
+  if (authError) return authError;
   const { captions, businessOnly = false, includeHint = "", excludeHint = "" } = await req.json();
 
   if (!process.env.ANTHROPIC_API_KEY) {

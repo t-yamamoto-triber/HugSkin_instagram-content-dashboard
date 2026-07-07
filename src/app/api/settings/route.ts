@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { requireAuth } from "@/lib/api-auth";
 
 function getClient() {
   return createClient(
@@ -9,6 +10,8 @@ function getClient() {
 }
 
 export async function GET() {
+  const authError = await requireAuth();
+  if (authError) return authError;
   const sb = getClient();
   const { data, error } = await sb
     .from("brand_settings")
@@ -29,6 +32,8 @@ export async function GET() {
 }
 
 export async function PUT(req: NextRequest) {
+  const authError = await requireAuth();
+  if (authError) return authError;
   const sb = getClient();
   const { regulation, imageDirection, productDescription, productImageUrls, githubDocUrl, updatedBy } = await req.json();
 
